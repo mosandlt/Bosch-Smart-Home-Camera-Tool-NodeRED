@@ -1,0 +1,53 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-snapshot', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:     { value: '' },
+            server:   { value: '', type: 'bosch-camera-config', required: true },
+            cameraId: { value: '', required: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'camera.svg',
+        label: function () {
+            return this.name || 'bosch snapshot';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-snapshot">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> SHC Config</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="hdm:Cameras:XXXXXXXX-... (leave blank = msg.cameraId)">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-snapshot">
+    <p>Fetches a snapshot (JPEG) from a Bosch Smart Home Camera when triggered by any incoming message.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">cameraId <span class="property-type">string</span></dt>
+        <dd>Override camera ID at runtime via <code>msg.cameraId</code></dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">Buffer</span></dt>
+        <dd>Raw JPEG image bytes</dd>
+        <dt>contentType <span class="property-type">string</span></dt>
+        <dd>Always <code>image/jpeg</code></dd>
+    </dl>
+    <h3>Status</h3>
+    <p><strong>Phase 2 — not yet functional.</strong> Snapshot HTTP request will be added in the next release.</p>
+</script>
