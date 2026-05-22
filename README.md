@@ -2,7 +2,7 @@
 
 > **Alpha — Phase 1 skeleton. Nodes register and display status but make no HTTP calls yet.**
 
-Node-RED nodes for [Bosch Smart Home Cameras](https://www.bosch-smarthome.com/de/de/produkte/kameras/) (Eyes Outdoor, Eyes Indoor, 360° Indoor, Gen2 Outdoor II / Indoor II) connected via a Bosch Smart Home Controller (SHC).
+Node-RED nodes for [Bosch Smart Home Cameras](https://www.bosch-smarthome.com/de/de/produkte/kameras/) (Eyes Outdoor, 360° Indoor, Eyes Outdoor II, Eyes Indoor II) connected via a Bosch Smart Home Controller (SHC).
 
 Part of the [Bosch Smart Home Camera Tool](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) family:
 
@@ -38,7 +38,7 @@ Emits a message whenever a camera fires an event. Connect to downstream nodes to
 Output `msg.payload`:
 ```json
 {
-  "cam":        "hdm:Cameras:EF791764-A48D-4F00-9B32-...",
+  "cam":        "hdm:Cameras:YOUR-CAMERA-UUID",
   "event_type": "MOTION_DETECTED",
   "timestamp":  "2026-05-20T12:34:56.000Z"
 }
