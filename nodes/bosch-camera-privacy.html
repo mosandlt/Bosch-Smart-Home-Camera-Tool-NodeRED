@@ -26,12 +26,12 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-server"><i class="fa fa-server"></i> SHC Config</label>
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
         <input type="text" id="node-input-server">
     </div>
     <div class="form-row">
         <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
-        <input type="text" id="node-input-cameraId" placeholder="hdm:Cameras:XXXXXXXX-... (leave blank = msg.cameraId)">
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
     </div>
     <div class="form-row">
         <label for="node-input-defaultMode"><i class="fa fa-eye-slash"></i> Mode</label>
@@ -39,7 +39,7 @@
             <option value="msg">Use msg.payload (true/false/'on'/'off')</option>
             <option value="on">Always enable privacy</option>
             <option value="off">Always disable privacy</option>
-            <option value="toggle">Toggle (Phase 2)</option>
+            <option value="toggle">Toggle current state</option>
         </select>
     </div>
 </script>
@@ -60,6 +60,7 @@
         <dt>payload.success <span class="property-type">boolean</span></dt>
         <dd>Whether the API call succeeded</dd>
     </dl>
-    <h3>Status</h3>
-    <p><strong>Phase 2 — not yet functional.</strong> HTTP PUT to SHC will be added in the next release.</p>
+    <h3>Details</h3>
+    <p>In <i>Toggle</i> mode the node reads the current privacy state first and
+    then flips it.</p>
 </script>

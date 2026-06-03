@@ -35,12 +35,14 @@
     "@eslint/js": "^9.0.0",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
-    "node-red-node-test-helper": "^0.3.4",
-    "mocha": "^11.7.6"
+    "mocha": "^11.7.6",
+    "nock": "^13.5.6",
+    "node-red": "^4.0.9",
+    "node-red-node-test-helper": "^0.3.4"
   },
   "scripts": {
     "lint": "eslint nodes/",
-    "test": "echo 'Tests deferred to Phase 5 (node-red-node-test-helper)' && exit 0"
+    "test": "mocha \"test/**/*_spec.js\" --timeout 8000"
   },
   "files": [
     "nodes/**/*",

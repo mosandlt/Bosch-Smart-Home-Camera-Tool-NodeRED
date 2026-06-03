@@ -3,10 +3,11 @@
         category: 'Bosch Camera',
         color: '#a6bbcf',
         defaults: {
-            name:       { value: '' },
-            server:     { value: '', type: 'bosch-camera-config', required: true },
-            cameraId:   { value: '', required: false },
-            eventTypes: { value: ['MOTION_DETECTED', 'ALARM', 'PERSON_DETECTED'] }
+            name:     { value: '' },
+            server:   { value: '', type: 'bosch-camera-config', required: true },
+            cameraId: { value: '', required: true },
+            limit:    { value: 5, validate: RED.validators.number() },
+            interval: { value: 30, validate: RED.validators.number() }
         },
         inputs: 0,
         outputs: 1,
@@ -26,33 +27,43 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-server"><i class="fa fa-server"></i> SHC Config</label>
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
         <input type="text" id="node-input-server">
     </div>
     <div class="form-row">
         <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
-        <input type="text" id="node-input-cameraId" placeholder="hdm:Cameras:XXXXXXXX-... (leave blank = all cameras)">
+        <input type="text" id="node-input-cameraId" placeholder="video input ID">
     </div>
     <div class="form-row">
-        <label><i class="fa fa-filter"></i> Event Types</label>
-        <p style="font-size:0.85em;color:#888;margin:4px 0 0 0">
-            Phase 2: configurable filter. Currently passes all:
-            MOTION_DETECTED, ALARM, PERSON_DETECTED, AUDIO_ALARM
-        </p>
+        <label for="node-input-limit"><i class="fa fa-list-ol"></i> Limit</label>
+        <input type="number" id="node-input-limit" placeholder="5" style="width:90px">
+        <span style="margin-left:6px;font-size:0.85em;color:#888">events fetched per poll</span>
+    </div>
+    <div class="form-row">
+        <label for="node-input-interval"><i class="fa fa-clock-o"></i> Interval</label>
+        <input type="number" id="node-input-interval" placeholder="30" style="width:90px">
+        <span style="margin-left:6px;font-size:0.85em;color:#888">seconds between polls (min 10)</span>
     </div>
 </script>
 
 <script type="text/html" data-help-name="bosch-camera-event">
-    <p>Emits a message whenever a Bosch Smart Home Camera fires an event.</p>
+    <p>Polls the Bosch cloud for camera events and emits a message for each new one.</p>
     <h3>Outputs</h3>
     <dl class="message-properties">
         <dt>payload.cam <span class="property-type">string</span></dt>
-        <dd>Camera device ID from the SHC (e.g. <code>hdm:Cameras:EF791764-...</code>)</dd>
+        <dd>Camera (video input) ID</dd>
         <dt>payload.event_type <span class="property-type">string</span></dt>
-        <dd>One of: <code>MOTION_DETECTED</code>, <code>ALARM</code>, <code>PERSON_DETECTED</code>, <code>AUDIO_ALARM</code></dd>
+        <dd>Event type reported by Bosch, e.g. <code>PERSON</code>, <code>MOTION</code></dd>
         <dt>payload.timestamp <span class="property-type">string</span></dt>
         <dd>ISO 8601 timestamp of the event</dd>
+        <dt>payload.image_url / payload.clip_url <span class="property-type">string</span></dt>
+        <dd>Cloud URLs for the event snapshot / video clip (require a bearer token)</dd>
+        <dt>payload.raw <span class="property-type">object</span></dt>
+        <dd>The full event object from the API</dd>
     </dl>
-    <h3>Status</h3>
-    <p><strong>Phase 2 — not yet functional.</strong> SSE/long-poll subscription will be added in the next release.</p>
+    <h3>Details</h3>
+    <p>The first poll after (re)start only establishes a baseline — existing events
+    are recorded but not emitted, so a restart never replays history. After that,
+    each new event is emitted once (tracked by id). The interval is clamped to a
+    minimum of 10 seconds.</p>
 </script>

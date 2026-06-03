@@ -2,17 +2,13 @@
     RED.nodes.registerType('bosch-camera-config', {
         category: 'config',
         defaults: {
-            name:    { value: '', required: false },
-            shcHost: { value: '', required: true },
-            shcPort: { value: 8444 },
-            useCloud:{ value: false }
+            name: { value: '', required: false }
         },
         credentials: {
-            email:    { type: 'text' },
-            password: { type: 'password' }
+            refreshToken: { type: 'password' }
         },
         label: function () {
-            return this.name || this.shcHost || 'Bosch SHC';
+            return this.name || 'Bosch Cloud';
         }
     });
 </script>
@@ -20,35 +16,23 @@
 <script type="text/html" data-template-name="bosch-camera-config">
     <div class="form-row">
         <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-config-input-name" placeholder="My Bosch SHC">
+        <input type="text" id="node-config-input-name" placeholder="My Bosch Cloud">
     </div>
     <div class="form-row">
-        <label for="node-config-input-shcHost"><i class="fa fa-globe"></i> SHC Host / IP</label>
-        <input type="text" id="node-config-input-shcHost" placeholder="192.168.x.x">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-shcPort"><i class="fa fa-hashtag"></i> SHC Port</label>
-        <input type="number" id="node-config-input-shcPort" placeholder="8444">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-email"><i class="fa fa-envelope"></i> Email</label>
-        <input type="text" id="node-config-input-email" placeholder="user@example.com">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-password"><i class="fa fa-lock"></i> Password</label>
-        <input type="password" id="node-config-input-password">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-useCloud"><i class="fa fa-cloud"></i> Use Cloud</label>
-        <input type="checkbox" id="node-config-input-useCloud" style="width:auto">
-        <span style="margin-left:6px;font-size:0.9em;color:#888">(Phase 2: Bosch Remote API)</span>
+        <label for="node-config-input-refreshToken"><i class="fa fa-key"></i> Refresh Token</label>
+        <input type="password" id="node-config-input-refreshToken" placeholder="Bosch SingleKey ID refresh token">
     </div>
 </script>
 
 <script type="text/html" data-help-name="bosch-camera-config">
-    <p>Shared configuration for Bosch Smart Home Controller credentials.</p>
-    <p>Credentials are stored securely via Node-RED's credentials API and are
-    never exported to <code>flows.json</code>.</p>
-    <p><strong>Note:</strong> OAuth token exchange is not yet implemented (Phase 2).
-    This node stores credentials for future use.</p>
+    <p>Shared Bosch Smart Home <b>cloud</b> credentials for the camera nodes.</p>
+    <p>This node stores a Bosch SingleKey ID <b>refresh token</b> (securely, via
+    Node-RED's credentials API — never exported to <code>flows.json</code>) and
+    exchanges it for short-lived access tokens used by the event, snapshot and
+    privacy nodes.</p>
+    <h3>Obtaining a refresh token</h3>
+    <p>Run the Bosch Camera <b>Python CLI</b> once to log in via the browser
+    (PKCE), then copy the <code>refresh_token</code> it saves to its local config
+    file into the field above. The refresh token does not expire, so this is a
+    one-time step.</p>
 </script>

@@ -1,68 +1,82 @@
 // bosch-camera-privacy.js
-// Action node: enables or disables privacy mode on a Bosch Smart Home Camera.
-// Input: msg.payload = true/false (or 'on'/'off', 1/0 — normalised below)
+// Action node: enables/disables (or toggles) privacy mode on a camera.
+// Input:  msg.payload = true/false | 'on'/'off' | 1/0   (when Mode = 'msg')
 // Output: msg.payload = { cam: string, privacy: boolean, success: boolean }
-//
-// Phase 2 TODO:
-//   - Call SHC endpoint: PUT /smarthome/devices/<id>/services/PrivacyMode/state
-//     with body: { "@type": "privacyModeState", "value": true/false }
-//   - Use config node bearer token for Authorization
-//   - Handle token expiry → re-auth and retry once
-//   - Gen2 cameras: verify endpoint path differs from Gen1 if needed
+
+const api = require('./lib/bosch-api');
+
+function normalise(raw) {
+    return raw === true || raw === 'on' || raw === 'ON' || raw === 1 || raw === '1';
+}
 
 module.exports = function (RED) {
     function BoschCameraPrivacyNode(config) {
         RED.nodes.createNode(this, config);
-
         const node = this;
 
-        this.server      = RED.nodes.getNode(config.server);
-        this.cameraId    = config.cameraId;
-        this.defaultMode = config.defaultMode; // 'on' | 'off' | 'toggle' | 'msg'
+        node.server = RED.nodes.getNode(config.server);
+        node.cameraId = config.cameraId;
+        node.defaultMode = config.defaultMode || 'msg'; // 'on' | 'off' | 'toggle' | 'msg'
 
-        if (!this.server) {
+        if (!node.server) {
             node.status({ fill: 'red', shape: 'ring', text: 'no config' });
-            node.error('No Bosch SHC config node selected');
+            node.error('No Bosch config node selected');
             return;
         }
 
         node.status({ fill: 'grey', shape: 'dot', text: 'idle' });
 
-        this.on('input', function (msg, send, done) {
+        node.on('input', function (msg, send, done) {
             send = send || function () { node.send.apply(node, arguments); };
-            done = done || function (err) { if (err) node.error(err, msg); };
+            done = done || function (err) { if (err) { node.error(err, msg); } };
 
-            // Normalise input to boolean
-            let enable;
-            const raw = node.defaultMode === 'msg' ? msg.payload : node.defaultMode;
-            if (raw === 'toggle') {
-                // Phase 2: read current state first, then invert
-                node.warn('bosch-camera-privacy: toggle requires current state read (Phase 2)');
-                done();
+            const camId = msg.cameraId || node.cameraId;
+            if (!camId) {
+                node.status({ fill: 'red', shape: 'ring', text: 'no camera id' });
+                done(new Error('no camera id (set Camera ID or msg.cameraId)'));
                 return;
             }
-            enable = (raw === true || raw === 'on' || raw === 1 || raw === '1');
 
-            node.status({ fill: 'blue', shape: 'dot', text: enable ? 'enabling...' : 'disabling...' });
+            const raw = node.defaultMode === 'msg' ? msg.payload : node.defaultMode;
 
-            // Phase 2: replace stub with real HTTP PUT
-            // const axios = require('axios');
-            // axios.put(`https://${node.server.shcHost}:${node.server.shcPort}/smarthome/devices/${node.cameraId}/services/PrivacyMode/state`, {
-            //     "@type": "privacyModeState",
-            //     "value": enable
-            // }, { headers: { Authorization: `Bearer ${node.server.token}` }, ... })
-            // .then(() => {
-            //     node.status({ fill: enable ? 'red' : 'green', shape: 'dot', text: enable ? 'privacy on' : 'privacy off' });
-            //     send({ ...msg, payload: { cam: node.cameraId, privacy: enable, success: true } });
-            //     done();
-            // }).catch(err => { ... });
-
-            node.status({ fill: 'yellow', shape: 'ring', text: 'Phase 2: not implemented' });
-            node.warn('bosch-camera-privacy: HTTP PUT not yet implemented (Phase 2)');
-            done();
+            node.server.getAccessToken()
+                .then(function (token) {
+                    if (raw === 'toggle') {
+                        // Read current state, then flip it.
+                        return api.getPrivacy(token, camId).then(function (current) {
+                            if (current !== 'ON' && current !== 'OFF') {
+                                throw new Error('cannot toggle: unexpected privacy state "' + current + '"');
+                            }
+                            return { token: token, enable: current !== 'ON' };
+                        });
+                    }
+                    return { token: token, enable: normalise(raw) };
+                })
+                .then(function (ctx) {
+                    node.status({
+                        fill: 'blue', shape: 'dot',
+                        text: ctx.enable ? 'enabling...' : 'disabling...'
+                    });
+                    return api.setPrivacy(ctx.token, camId, ctx.enable ? 'ON' : 'OFF')
+                        .then(function () { return ctx.enable; });
+                })
+                .then(function (enable) {
+                    node.status({
+                        fill: enable ? 'red' : 'green', shape: 'dot',
+                        text: enable ? 'privacy on' : 'privacy off'
+                    });
+                    send(Object.assign({}, msg, {
+                        payload: { cam: camId, privacy: enable, success: true }
+                    }));
+                    done();
+                })
+                .catch(function (err) {
+                    node.status({ fill: 'red', shape: 'ring', text: err.message });
+                    done(err);
+                });
         });
 
-        this.on('close', function (done) {
+        node.on('close', function (done) {
             node.status({});
             done();
         });

@@ -25,12 +25,12 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-server"><i class="fa fa-server"></i> SHC Config</label>
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
         <input type="text" id="node-input-server">
     </div>
     <div class="form-row">
         <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
-        <input type="text" id="node-input-cameraId" placeholder="hdm:Cameras:XXXXXXXX-... (leave blank = msg.cameraId)">
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
     </div>
 </script>
 
@@ -48,6 +48,6 @@
         <dt>contentType <span class="property-type">string</span></dt>
         <dd>Always <code>image/jpeg</code></dd>
     </dl>
-    <h3>Status</h3>
-    <p><strong>Phase 2 — not yet functional.</strong> Snapshot HTTP request will be added in the next release.</p>
+    <h3>Details</h3>
+    <p>Fetches a live snapshot through the Bosch cloud REMOTE proxy.</p>
 </script>

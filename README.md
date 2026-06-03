@@ -1,8 +1,8 @@
 # node-red-contrib-bosch-camera
 
-> **Alpha — Phase 1 skeleton. Nodes register and display status but make no HTTP calls yet.**
+> **Alpha — functional. The four nodes talk to the Bosch Smart Home cloud API. Field-test before relying on it in production flows.**
 
-Node-RED nodes for [Bosch Smart Home Cameras](https://www.bosch-smarthome.com/de/de/produkte/kameras/) (Eyes Outdoor, 360° Indoor, Eyes Outdoor II, Eyes Indoor II) connected via a Bosch Smart Home Controller (SHC).
+Node-RED nodes for [Bosch Smart Home Cameras](https://www.bosch-smarthome.com/de/de/produkte/kameras/) (Eyes Outdoor, 360° Indoor, Eyes Outdoor II, Eyes Indoor II) via the Bosch Smart Home cloud API.
 
 Part of the [Bosch Smart Home Camera Tool](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) family:
 
@@ -27,43 +27,44 @@ Or use the Node-RED Palette Manager (search `bosch-camera`).
 
 ### bosch-camera-config (config node)
 
-Shared credentials for one Bosch SHC. Stores email + password via Node-RED's secure credentials API — never exported to `flows.json`. One config node per SHC installation.
+Holds a Bosch SingleKey ID **refresh token** and exchanges it for short-lived cloud access tokens (refreshed automatically, cached until they near expiry). Stored via Node-RED's secure credentials API — never exported to `flows.json`. One config node per Bosch account.
 
-Fields: SHC host/IP, port (default 8444), email, password, use-cloud toggle.
+**Getting a refresh token:** run the [Bosch Camera Python CLI](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) once to log in via the browser (PKCE), then copy the `refresh_token` it stores into the config node. The refresh token does not expire, so this is a one-time step.
 
 ### bosch-camera-event (input node)
 
-Emits a message whenever a camera fires an event. Connect to downstream nodes to trigger automations.
+Polls the cloud for camera events and emits one message per new event (deduplicated by id). Configurable poll interval (default 30 s, min 10 s) and per-poll event limit.
 
 Output `msg.payload`:
 ```json
 {
-  "cam":        "hdm:Cameras:YOUR-CAMERA-UUID",
-  "event_type": "MOTION_DETECTED",
-  "timestamp":  "2026-05-20T12:34:56.000Z"
+  "cam":        "your-video-input-id",
+  "event_type": "PERSON",
+  "timestamp":  "2026-06-03T12:34:56.000Z",
+  "image_url":  "https://.../snap.jpg",
+  "clip_url":   "https://.../clip.mp4"
 }
 ```
 
-Event types: `MOTION_DETECTED`, `ALARM`, `PERSON_DETECTED`, `AUDIO_ALARM`
-
 ### bosch-camera-snapshot (action node)
 
-Any incoming message triggers a snapshot fetch. Output `msg.payload` is a `Buffer` containing the JPEG image (`msg.contentType = 'image/jpeg'`).
+Any incoming message triggers a live snapshot fetch through the cloud REMOTE proxy. Output `msg.payload` is a `Buffer` containing the JPEG image (`msg.contentType = 'image/jpeg'`). Camera ID comes from the node config or `msg.cameraId`.
 
 Pipe to `node-red-contrib-image-output` or a file node to save/display.
 
 ### bosch-camera-privacy (action node)
 
-Enables or disables camera privacy mode.
+Enables, disables or toggles camera privacy mode.
 
-Input: `msg.payload = true` (enable) or `false` (disable). Or set a fixed mode in the node config.
+Input (Mode = *Use msg.payload*): `msg.payload = true`/`'on'`/`1` to enable, `false`/`'off'`/`0` to disable. Other modes (*on*, *off*, *toggle*) are fixed in the node config; *toggle* reads the current state first and flips it.
 
 Output: `msg.payload = { cam, privacy, success }`
 
 ## Roadmap
 
-- **Phase 2**: OAuth token exchange with SHC, SSE/long-poll event subscription, live snapshot + privacy HTTP calls
-- **Phase 3**: Stream URL node (RTSP/HLS), light control node, pan/tilt (Gen2)
+- Stream URL node (RTSP/HLS via the cloud proxy)
+- Light control + pan/tilt nodes (Gen2 cameras)
+- FCM push as a lower-latency alternative to event polling
 
 ## License
 
