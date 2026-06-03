@@ -42,12 +42,18 @@ jobs:
         run: npm test
 
   # Publishes to npm on tag push (v*). Gates on the test job first.
-  # Uses the NPM_TOKEN repo secret (npm granular/automation token, publish scope).
+  # Tokenless via npm Trusted Publishing (OIDC): with id-token:write and a
+  # Trusted Publisher configured on npmjs.com for this repo + workflow, npm
+  # exchanges the GitHub OIDC token for a short-lived publish credential and
+  # attaches build provenance automatically. No NPM_TOKEN secret is used.
   publish:
     name: publish to npm
     needs: test
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -56,6 +62,9 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: npm
+
+      # Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.x.
+      - run: npm install -g npm@latest
 
       - run: npm ci
 
@@ -73,8 +82,8 @@ jobs:
           fi
 
       # prepublishOnly (lint + test) runs automatically as part of `npm publish`.
-      # Prerelease versions (X.Y.Z-foo) go to the `alpha` dist-tag so they never
-      # become `latest`; stable versions publish to `latest`.
+      # Prerelease versions (X.Y.Z-foo) go to the `alpha` dist-tag; stable versions
+      # publish to `latest`. No NODE_AUTH_TOKEN — OIDC supplies the credential.
       - name: Publish
         if: steps.check.outputs.publish == 'true'
         run: |
@@ -83,5 +92,3 @@ jobs:
             *-*) echo "Publishing prerelease ${VERSION} (dist-tag: alpha)"; npm publish --tag alpha ;;
             *)   echo "Publishing stable ${VERSION} (dist-tag: latest)"; npm publish ;;
           esac
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
