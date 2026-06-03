@@ -17,7 +17,7 @@
     "motion"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "node-red": {
     "version": ">=3.0.0",
@@ -32,11 +32,15 @@
     "axios": "^1.7.9"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
     "node-red-node-test-helper": "^0.3.4",
-    "mocha": "^10.4.0"
+    "mocha": "^11.7.6"
   },
   "scripts": {
-    "test": "echo 'Tests deferred to Phase 2 (node-red-node-test-helper)' && exit 0"
+    "lint": "eslint nodes/",
+    "test": "echo 'Tests deferred to Phase 5 (node-red-node-test-helper)' && exit 0"
   },
   "files": [
     "nodes/**/*",
