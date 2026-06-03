@@ -4,7 +4,15 @@ on:
   push:
     branches:
       - main
+    tags:
+      # stable versions
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      # pre-releases (e.g. v0.2.0-alpha)
+      - "v[0-9]+.[0-9]+.[0-9]+-**"
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -32,3 +40,48 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # Publishes to npm on tag push (v*). Gates on the test job first.
+  # Uses the NPM_TOKEN repo secret (npm granular/automation token, publish scope).
+  publish:
+    name: publish to npm
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - run: npm ci
+
+      # Skip if this exact version is already on npm — avoids a red run when a tag
+      # is re-pushed (e.g. after a re-pointed release tag).
+      - name: Skip if version already published
+        id: check
+        run: |
+          VERSION="${GITHUB_REF##*/v}"
+          if npm view "node-red-contrib-bosch-camera@${VERSION}" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version ${VERSION} already on npm — skipping publish."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # prepublishOnly (lint + test) runs automatically as part of `npm publish`.
+      # Prerelease versions (X.Y.Z-foo) go to the `alpha` dist-tag so they never
+      # become `latest`; stable versions publish to `latest`.
+      - name: Publish
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          VERSION="${GITHUB_REF##*/v}"
+          case "$VERSION" in
+            *-*) echo "Publishing prerelease ${VERSION} (dist-tag: alpha)"; npm publish --tag alpha ;;
+            *)   echo "Publishing stable ${VERSION} (dist-tag: latest)"; npm publish ;;
+          esac
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
