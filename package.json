@@ -42,7 +42,8 @@
   },
   "scripts": {
     "lint": "eslint nodes/",
-    "test": "mocha \"test/**/*_spec.js\" --timeout 8000"
+    "test": "mocha \"test/**/*_spec.js\" --timeout 8000",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "files": [
     "nodes/**/*",
