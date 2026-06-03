@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-alpha (2026-06-03)
 
 Phase 5 — the four nodes are now functional against the Bosch Smart Home **cloud** API
 (`residential.cbs.boschsecurity.com` /v11), verified against the Python CLI.
