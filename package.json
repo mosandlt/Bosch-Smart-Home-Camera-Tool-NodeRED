@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-bosch-camera",
-  "version": "0.2.0-alpha",
+  "version": "0.2.1-alpha",
   "description": "Node-RED nodes for Bosch Smart Home Cameras (Eyes Outdoor/Indoor, 360, Gen2) — events, snapshots, privacy control",
   "author": {
     "name": "mosandlt",

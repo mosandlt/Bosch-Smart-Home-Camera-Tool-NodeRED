@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1-alpha (2026-06-11)
+
+**Security:** Verify TLS for all Bosch cloud calls (CWE-295, GHSA-6qh5-x5m5-vj6v).
+
+The shared `nodes/lib/bosch-api.js` previously used `rejectUnauthorized: false`,
+accepting any certificate for all HTTPS calls to `residential.cbs.boschsecurity.com`
+and the cloud video proxy. An adjacent-network attacker could intercept OAuth tokens,
+event data, and snapshots via a self-signed certificate.
+
+**Fix:** replaced the insecure agent with a pinned `https.Agent` that trusts both system
+roots (Let's Encrypt, used by Keycloak/OAuth) and the private Bosch Video CA 2A (used by
+the snapshot proxy), and nothing else.
+
 ## 0.2.0-alpha (2026-06-03)
 
 Phase 5 — the four nodes are now functional against the Bosch Smart Home **cloud** API

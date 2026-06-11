@@ -176,7 +176,7 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 | 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.x** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
 | 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.1.0** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widget |
 | 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.2** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
-| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.0-alpha** · on npm · 4 functional nodes (event / snapshot / privacy / config) |
+| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.1-alpha** · on npm · 4 functional nodes (event / snapshot / privacy / config) |
 
 Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — alpha dashboard.
 
@@ -187,6 +187,9 @@ Home Assistant stays the **reference implementation** — features land there fi
 ## Changelog
 
 Full history in [`CHANGELOG.md`](./CHANGELOG.md). Latest:
+
+### 0.2.1-alpha (2026-06-11)
+**Security:** TLS verification for all Bosch cloud calls (CWE-295, GHSA-6qh5-x5m5-vj6v). The cloud REST API and video proxy now validate the Bosch private CA (pinned, plus system roots) instead of accepting any certificate, closing an adjacent-network MITM on OAuth tokens, event data, and snapshots.
 
 ### 0.2.0-alpha (2026-06-03)
 The four nodes are now functional against the Bosch Smart Home cloud API: config-node refresh-token auth, `/v11/events` polling, cloud-proxy snapshots, and privacy enable/disable/toggle. Shared `nodes/lib/bosch-api.js`, 20 tests, CI on Node 22 + 24, tokenless OIDC npm publishing.
