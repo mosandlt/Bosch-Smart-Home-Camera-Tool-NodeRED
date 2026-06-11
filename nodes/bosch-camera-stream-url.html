@@ -1,0 +1,84 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-stream-url', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:           { value: '' },
+            server:         { value: '', type: 'bosch-camera-config', required: true },
+            cameraId:       { value: '', required: false },
+            connectionType: { value: 'REMOTE' }  // 'REMOTE' | 'LOCAL'
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'camera.svg',
+        label: function () {
+            return this.name || 'bosch stream url';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-stream-url">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-connectionType"><i class="fa fa-plug"></i> Connection</label>
+        <select id="node-input-connectionType">
+            <option value="REMOTE">REMOTE (cloud proxy — works from anywhere)</option>
+            <option value="LOCAL">LOCAL (LAN — same network as SHC only)</option>
+        </select>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-stream-url">
+    <p>Opens a live stream connection to a Bosch Smart Home Camera and emits the
+    resulting stream URL(s) in <code>msg.payload</code>.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">cameraId <span class="property-type">string</span></dt>
+        <dd>Override the configured Camera ID at runtime via <code>msg.cameraId</code>.</dd>
+        <dt class="optional">connectionType <span class="property-type">string</span></dt>
+        <dd>Override the connection type at runtime via <code>msg.connectionType</code>
+        (<code>'REMOTE'</code> or <code>'LOCAL'</code>).</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.rtsp <span class="property-type">string | null</span></dt>
+        <dd>RTSP stream URL (may contain Digest credentials — treat as a secret).</dd>
+        <dt>payload.rtsps <span class="property-type">string | null</span></dt>
+        <dd>RTSPS (TLS) stream URL, preferred over plain RTSP.</dd>
+        <dt>payload.hls <span class="property-type">string | null</span></dt>
+        <dd>HLS playlist URL if the camera supports it, otherwise <code>null</code>.</dd>
+        <dt>payload.connectionType <span class="property-type">string</span></dt>
+        <dd>The connection type used (<code>'REMOTE'</code> or <code>'LOCAL'</code>).</dd>
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dd>Camera device ID.</dd>
+        <dt>payload.timestamp <span class="property-type">string</span></dt>
+        <dd>ISO-8601 time the connection was opened.</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>Calls <code>PUT /v11/video_inputs/{id}/connection</code> on the Bosch cloud API to
+    open a live stream session. The node passes <code>highQualityVideo: true</code>.</p>
+    <p><b>REMOTE</b> routes the stream through the Bosch cloud RTSP proxy — it works from
+    any network. <b>LOCAL</b> returns a direct LAN address (only reachable when on the
+    same network as the Smart Home Controller).</p>
+    <p>Stream URLs may embed Digest credentials in the userinfo component
+    (<code>rtsp://user:pass@host/...</code>). The node <em>never</em> logs the raw URL —
+    only a redacted form (<code>***:***@</code>) appears in node status and the log.</p>
+    <p>Pass the URL to an RTSP-capable player node or use it with go2rtc / FFmpeg.</p>
+</script>

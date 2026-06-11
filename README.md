@@ -132,6 +132,25 @@ in the node config; *toggle* reads the current state first and flips it.
 
 Output: `msg.payload = { cam, privacy, success }`
 
+### bosch-camera-stream-url (action node)
+
+Opens a live stream connection via the cloud proxy and returns the available
+stream URLs in `msg.payload`. Useful for feeding the URL into an RTSP player,
+go2rtc, or a recording pipeline without having to call the API manually.
+
+Output `msg.payload`:
+```json
+{
+  "rtspUrl":  "rtsps://proxy.example.com/…",
+  "rtspsUrl": "rtsps://proxy.example.com/…",
+  "hlsUrl":   "https://proxy.example.com/…"
+}
+```
+`msg.cam` carries the camera ID. Connection type defaults to `REMOTE` (cloud
+TLS proxy); set to `LOCAL` for LAN. Camera ID and connection type can be
+overridden at runtime via `msg.cameraId` / `msg.connectionType`. Digest
+credentials embedded in RTSP URLs are redacted in node status and logs (`***:***@`).
+
 ---
 
 ## Example Flow
@@ -176,7 +195,7 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 | 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.x** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
 | 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.1.0** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widget |
 | 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.2** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
-| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.1-alpha** · on npm · 4 functional nodes (event / snapshot / privacy / config) |
+| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.2-alpha** · on npm · 5 functional nodes (event / snapshot / privacy / stream-url / config) |
 
 Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — alpha dashboard.
 
@@ -187,6 +206,9 @@ Home Assistant stays the **reference implementation** — features land there fi
 ## Changelog
 
 Full history in [`CHANGELOG.md`](./CHANGELOG.md). Latest:
+
+### 0.2.2-alpha (2026-06-11)
+New `bosch-camera-stream-url` node — opens a live connection and returns RTSP/RTSPS/HLS stream URL(s) in `msg.payload`; credentials redacted in logs.
 
 ### 0.2.1-alpha (2026-06-11)
 **Security:** TLS verification for all Bosch cloud calls (CWE-295, GHSA-6qh5-x5m5-vj6v). The cloud REST API and video proxy now validate the Bosch private CA (pinned, plus system roots) instead of accepting any certificate, closing an adjacent-network MITM on OAuth tokens, event data, and snapshots.

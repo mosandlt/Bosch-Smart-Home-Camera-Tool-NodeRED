@@ -170,12 +170,61 @@ async function setPrivacy(token, cameraId, mode, durationInSeconds = null) {
     );
 }
 
+// Open a live stream connection and return stream URLs for the camera.
+// `connectionType` is 'REMOTE' (default, cloud proxy RTSP/RTSPS) or 'LOCAL'
+// (LAN — only reachable on the same network as the SHC, no TLS pinning needed).
+// Resolves to:
+//   { rtsp: string|null, rtsps: string|null, hls: string|null, raw: object }
+// where `raw` is the full connection response from the Bosch API.
+//
+// SECURITY: callers MUST NOT log the returned URLs directly — they may embed
+// Digest credentials in the userinfo component (rtsp://user:pass@host/...).
+// Use redactStreamUrl() before any logging.
+async function getStreamUrl(token, cameraId, connectionType = 'REMOTE') {
+    const res = await axios.put(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/connection`,
+        { type: connectionType, highQualityVideo: true },
+        {
+            headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+            httpsAgent: boschCloudAgent,
+            timeout: TIMEOUT
+        }
+    );
+    const data = res.data || {};
+
+    // The Bosch connection response carries one or more stream URLs.
+    // Observed shapes (from Python CLI + HA integration research):
+    //   data.rtspUrl   — e.g. "rtsp://user:pass@proxy.live.cbs.boschsecurity.com:554/..."
+    //   data.rtspsUrl  — TLS variant (rtsps://)
+    //   data.hlsUrl    — HLS playlist URL (https://...)
+    // For LOCAL connections the URL is a direct LAN address (no cloud proxy).
+    const rtsp = data.rtspUrl || null;
+    const rtsps = data.rtspsUrl || null;
+    const hls = data.hlsUrl || null;
+
+    if (!rtsp && !rtsps && !hls) {
+        throw new Error('stream connection returned no usable URL');
+    }
+
+    return { rtsp, rtsps, hls, raw: data };
+}
+
+// Replace the userinfo section (user:pass@) in a stream URL with "***:***@"
+// so it is safe to emit in node logs/status.
+function redactStreamUrl(url) {
+    if (typeof url !== 'string') { return url; }
+    // Matches  scheme://user:pass@  or  scheme://user@
+    return url.replace(/^([a-zA-Z][a-zA-Z0-9+\-.]*:\/\/)[^@]*@/, '$1***:***@');
+}
+
 module.exports = {
     refreshAccessToken,
     getEvents,
     getSnapshot,
     getPrivacy,
     setPrivacy,
+    getStreamUrl,
+    redactStreamUrl,
     KEYCLOAK_TOKEN_URL,
     CLOUD_API
 };

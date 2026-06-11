@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+## [0.2.2-alpha] - 2026-06-11
+
+New node `bosch-camera-stream-url` — opens a live connection and returns the RTSP/RTSPS/HLS stream URL(s) in msg.payload (cloud TLS-pinned; embedded credentials redacted in logs).
+
+- **New node `bosch-camera-stream-url`**: opens a live stream connection
+  (`PUT /v11/video_inputs/{id}/connection`) and emits RTSP, RTSPS, and HLS
+  stream URLs in `msg.payload`. Supports `REMOTE` (cloud proxy, default) and
+  `LOCAL` (LAN) connection types. Camera ID and connection type can be overridden
+  at runtime via `msg.cameraId` / `msg.connectionType`. URLs embedding Digest
+  credentials are never logged raw — only the redacted form (`***:***@`) appears
+  in node status and logs.
+- `bosch-api`: added `getStreamUrl()` and `redactStreamUrl()` helpers.
+
 ## 0.2.1-alpha (2026-06-11)
 
 **Security:** Verify TLS for all Bosch cloud calls (CWE-295, GHSA-6qh5-x5m5-vj6v).
