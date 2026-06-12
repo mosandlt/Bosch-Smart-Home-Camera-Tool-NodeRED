@@ -7,6 +7,7 @@
 const axios = require('axios');
 const https = require('https');
 const tls = require('tls');
+const crypto = require('crypto');
 
 const KEYCLOAK_TOKEN_URL =
     'https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect/token';
@@ -69,12 +70,104 @@ nvQ8Em1LhUA=
 -----END CERTIFICATE-----
 `;
 
+// Parse the pinned Bosch intermediate once at module load.
+const BOSCH_CLOUD_PIN = new crypto.X509Certificate(BOSCH_CLOUD_CA_PEM);
+
+/**
+ * Verify a Bosch cloud TLS peer certificate.
+ *
+ * Fixes CWE-295 / GHSA-6qh5-x5m5-vj6v for Node (which lacks OpenSSL's
+ * PARTIAL_CHAIN flag, nodejs/node#36453): accept iff hostname matches AND
+ * validity window is current AND (chain trusted to a system root OR leaf
+ * signed by the pinned Bosch "Video CA 2A" intermediate).
+ *
+ * @param {Buffer|undefined} leafDer            raw DER of the peer leaf certificate
+ * @param {boolean}          authorized         socket.authorized from Node TLS
+ * @param {string|undefined} authorizationError socket.authorizationError (stringified)
+ * @param {string}           servername         TLS SNI hostname
+ * @param {crypto.X509Certificate} [pin]        pinned intermediate (default BOSCH_CLOUD_PIN)
+ * @param {number}           [now]              current epoch ms (injectable for tests)
+ * @returns {Error|null} null when trusted, Error describing why it was rejected
+ */
+function verifyCloudPeerCert(leafDer, authorized, authorizationError, servername, pin, now) {
+    if (pin === undefined) { pin = BOSCH_CLOUD_PIN; }
+    if (now === undefined) { now = Date.now(); }
+    if (!leafDer) {
+        return new Error('BOSCH_TLS: no peer certificate presented');
+    }
+    const leaf = new crypto.X509Certificate(leafDer);
+    if (leaf.checkHost(servername) === undefined) {
+        return new Error(`BOSCH_TLS: hostname '${servername}' not covered by server certificate`);
+    }
+    if (now < Date.parse(leaf.validFrom) || now > Date.parse(leaf.validTo)) {
+        return new Error('BOSCH_TLS: server certificate is outside its validity window');
+    }
+    if (authorized) {
+        // chain validated against a trusted system root (Let's Encrypt OAuth host, …)
+        return null;
+    }
+    if (leaf.verify(pin.publicKey)) {
+        // private Bosch PKI: leaf signed by the pinned "Video CA 2A" intermediate
+        return null;
+    }
+    return new Error(
+        `BOSCH_TLS: server certificate not trusted (${authorizationError != null ? authorizationError : 'no chain'}) and not issued by the pinned Bosch CA`
+    );
+}
+
+/**
+ * https.Agent for Bosch cloud calls. Defers Node's chain check and runs
+ * verifyCloudPeerCert on every new TLS socket, destroying the socket
+ * (which surfaces the reason to the caller) when the peer is not trusted.
+ */
+class BoschCloudAgent extends https.Agent {
+    /**
+     * Open a TLS connection with Node's chain check deferred, then run
+     * verifyCloudPeerCert on secureConnect. On rejection the socket is
+     * destroyed with the reason so the failure surfaces to the HTTP caller.
+     *
+     * @param {object}   options  connection options provided by the HTTP agent
+     * @param {Function} callback node-style (err, socket) invoked once the peer is verified
+     * @returns {tls.TLSSocket} the TLS socket
+     */
+    createConnection(options, callback) {
+        const servername = options.servername || options.host || '';
+        const socket = tls.connect({
+            ...options,
+            servername,
+            rejectUnauthorized: false,
+            ca: [...tls.rootCertificates, BOSCH_CLOUD_CA_PEM]
+        });
+        let settled = false;
+        const settle = (err, sock) => {
+            if (settled) { return; }
+            settled = true;
+            if (callback) { callback(err, sock || socket); }
+        };
+        socket.once('secureConnect', () => {
+            const authErr = socket.authorizationError ? `${socket.authorizationError}` : undefined;
+            const peerError = verifyCloudPeerCert(
+                socket.getPeerCertificate(true).raw,
+                socket.authorized,
+                authErr,
+                servername
+            );
+            if (peerError) {
+                socket.destroy(peerError);
+            } else {
+                settle(null, socket);
+            }
+        });
+        socket.once('error', (err) => settle(err));
+        return socket;
+    }
+}
+
 // Secure pinned agent: trusts system roots (for Let's Encrypt OAuth host) PLUS
 // the private Bosch Video CA 2A (for cloud REST + proxy snapshot hosts).
-const boschCloudAgent = new https.Agent({
-    rejectUnauthorized: true,
-    ca: [...tls.rootCertificates, BOSCH_CLOUD_CA_PEM]
-});
+// Uses BoschCloudAgent (not plain https.Agent) to work around Node's missing
+// PARTIAL_CHAIN support (nodejs/node#36453).
+const boschCloudAgent = new BoschCloudAgent();
 
 const TIMEOUT = 15000;
 
@@ -225,6 +318,9 @@ module.exports = {
     setPrivacy,
     getStreamUrl,
     redactStreamUrl,
+    verifyCloudPeerCert,
+    BoschCloudAgent,
     KEYCLOAK_TOKEN_URL,
-    CLOUD_API
+    CLOUD_API,
+    BOSCH_CLOUD_CA_PEM
 };

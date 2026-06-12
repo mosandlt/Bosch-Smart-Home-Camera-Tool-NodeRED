@@ -78,7 +78,7 @@ login (PKCE) cannot run inside a Node-RED config dialog, so you obtain a
 node. The refresh token does not expire, so this is a one-time step.
 
 1. Clone and run the [Bosch Camera Python CLI](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) and complete its browser login once.
-2. Copy the `refresh_token` it stores in its local config file.
+2. Copy the `refresh_token` from `bosch_config.json` (created by the CLI next to `bosch_camera.py` after first login — see the [Python CLI README](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python#readme) for details).
 3. In Node-RED, add a **bosch-camera-config** node and paste the token into the **Refresh Token** field (stored securely via Node-RED's credentials API — never written to `flows.json`).
 4. Point the event / snapshot / privacy nodes at that config node and at a camera (video input) ID.
 
@@ -172,7 +172,7 @@ for a one-tap privacy switch.
 ```bash
 npm install
 npm run lint     # eslint (flat config) over nodes/
-npm test         # mocha + node-red-node-test-helper + nock (20 specs)
+npm test         # mocha + node-red-node-test-helper + nock (31 specs)
 ```
 
 The HTTP layer lives in `nodes/lib/bosch-api.js` (no Node-RED dependency, unit-testable). Each node has happy- and error-path tests; CI runs the suite on Node 22 + 24.
@@ -191,10 +191,10 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 
 | Implementation | Repo | Status |
 |---|---|---|
-| 🏆 Home Assistant Integration | [Bosch-Smart-Home-Camera-Tool-HomeAssistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) | **v13.5.7** · HA Quality Scale **Platinum** · production-ready |
-| 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.x** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
-| 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.1.0** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widget |
-| 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.2** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
+| 🏆 Home Assistant Integration | [Bosch-Smart-Home-Camera-Tool-HomeAssistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) | **v13.5.14** · HA Quality Scale **Platinum** · production-ready |
+| 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.2** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
+| 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.5.2** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
+| 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.3** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
 | 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.2-alpha** · on npm · 5 functional nodes (event / snapshot / privacy / stream-url / config) |
 
 Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — alpha dashboard.
@@ -206,6 +206,9 @@ Home Assistant stays the **reference implementation** — features land there fi
 ## Changelog
 
 Full history in [`CHANGELOG.md`](./CHANGELOG.md). Latest:
+
+### 0.2.3-alpha (2026-06-12)
+Fix: Bosch cloud connections failed with `unable to get issuer certificate` after the v0.2.1 TLS hardening. Node has no OpenSSL `PARTIAL_CHAIN` flag, so pinning only the Bosch intermediate could not anchor the chain. Cloud certificates are now verified directly (hostname + validity + system-root chain or pinned-Bosch-CA signature); full MITM protection preserved.
 
 ### 0.2.2-alpha (2026-06-11)
 New `bosch-camera-stream-url` node — opens a live connection and returns RTSP/RTSPS/HLS stream URL(s) in `msg.payload`; credentials redacted in logs.

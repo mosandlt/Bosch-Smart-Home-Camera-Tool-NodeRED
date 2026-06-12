@@ -1,4 +1,24 @@
 <script type="text/javascript">
+    (function () {
+        if (window.__boschCameraConsoleBannerShown) { return; }
+        window.__boschCameraConsoleBannerShown = true;
+        $.getJSON('nodes/node-red-contrib-bosch-camera')
+            .done(function (info) {
+                var v = (info && info.version) ? ' v' + info.version + ' ' : ' ';
+                console.info(
+                    '%c NODE-RED-BOSCH-CAMERA %c' + v,
+                    'color: #fff; background: #ea0016; font-weight: 700;',
+                    'color: #ea0016; background: #fff; font-weight: 700;'
+                );
+            })
+            .fail(function () {
+                console.info(
+                    '%c NODE-RED-BOSCH-CAMERA ',
+                    'color: #fff; background: #ea0016; font-weight: 700;'
+                );
+            });
+    }());
+
     RED.nodes.registerType('bosch-camera-config', {
         category: 'config',
         defaults: {

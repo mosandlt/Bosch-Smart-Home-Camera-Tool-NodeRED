@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.2.3-alpha] - 2026-06-12
+
+Fix: Bosch cloud connections failed to start with `unable to get issuer certificate` after the v0.2.1 TLS hardening (CWE-295).
+
+- **Cloud TLS partial-chain fix:** v0.2.1 pinned only the Bosch "Video CA 2A" intermediate certificate. Node.js has no equivalent of OpenSSL's `PARTIAL_CHAIN` flag (nodejs/node#36453), so it could not anchor the certificate chain at the pinned intermediate and every Bosch cloud handshake failed with `unable to get issuer certificate`. The shared `nodes/lib/bosch-api.js` now verifies cloud certificates directly: the peer is trusted only when the hostname matches, the certificate is within its validity window, and the leaf either chains to a trusted system root (Let's Encrypt OAuth host) or is signed by the pinned Bosch CA. MITM protection from v0.2.1 is fully preserved — self-signed, expired, hostname-mismatch and untrusted-root certificates are still rejected. Verified live against the Bosch cloud; +10 regression tests.
+
 ## [0.2.2-alpha] - 2026-06-11
 
 New node `bosch-camera-stream-url` — opens a live connection and returns the RTSP/RTSPS/HLS stream URL(s) in msg.payload (cloud TLS-pinned; embedded credentials redacted in logs).
