@@ -233,11 +233,11 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 
 | Implementation | Repo | Status |
 |---|---|---|
-| 🏆 Home Assistant Integration | [Bosch-Smart-Home-Camera-Tool-HomeAssistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) | **v13.5.14** · HA Quality Scale **Platinum** · production-ready |
-| 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.2** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
-| 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.5.2** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
+| 🏆 Home Assistant Integration | [Bosch-Smart-Home-Camera-Tool-HomeAssistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) | **v13.7.1** · HA Quality Scale **Platinum** · production-ready |
+| 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.3** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
+| 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.7.0** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
 | 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.3** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
-| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.2-alpha** · on npm · 5 functional nodes (event / snapshot / privacy / stream-url / config) |
+| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.4-alpha** · on npm · 5 functional nodes (event / snapshot / privacy / stream-url / config) |
 
 Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — alpha dashboard.
 
