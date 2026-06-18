@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.2.4-alpha] - 2026-06-18
+
+Consistency hardening: the OAuth token refresh now uses the same pinned cloud agent as every other cloud call.
+
+- **NR-N1 — cert-pinning consistency:** `refreshAccessToken()` in `nodes/lib/bosch-api.js` now passes `httpsAgent: boschCloudAgent` to its `axios.post`, matching `getEvents`/`getSnapshot`/`getPrivacy`/`setPrivacy`/`getStreamUrl`. The OAuth host uses a public CA so this was already safe, but the call is now consistent with the rest of the cloud surface. +1 regression test.
+
 ## [0.2.3-alpha] - 2026-06-12
 
 Fix: Bosch cloud connections failed to start with `unable to get issuer certificate` after the v0.2.1 TLS hardening (CWE-295).

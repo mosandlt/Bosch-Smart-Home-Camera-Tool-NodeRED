@@ -191,6 +191,7 @@ async function refreshAccessToken(refreshToken) {
     });
     const res = await axios.post(KEYCLOAK_TOKEN_URL, body.toString(), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        httpsAgent: boschCloudAgent,
         timeout: TIMEOUT
     });
     if (!res.data || !res.data.access_token) {
