@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.2.5-alpha] - 2026-07-01
+
+Maintenance release: a security fix for a transitive dependency plus CI hardening.
+
+- **Security — `form-data` bumped to 4.0.6 ([GHSA-hmw2-7cc7-3qxx](https://github.com/advisories/GHSA-hmw2-7cc7-3qxx)):** versions 4.0.0–4.0.5 (pulled in transitively via `axios`) allowed CRLF injection through unescaped multipart field names/filenames. Resolved via `npm audit fix`. No runtime CVEs (`npm audit --omit=dev`: 0 vulnerabilities).
+- **CI:** added a GitHub Release job to the pipeline.
+
 ## [0.2.4-alpha] - 2026-06-18
 
 Consistency hardening: the OAuth token refresh now uses the same pinned cloud agent as every other cloud call.
