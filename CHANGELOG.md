@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.2.6-alpha] - 2026-07-03
+
+Docs-only patch: the "Related Projects" table listed sibling-repo versions several releases behind (Home Assistant, Python CLI, ioBroker, MCP Server, and this repo's own self-reference).
+
+- **Docs:** refreshed sibling-repo version references in README.md to current released versions.
+
 ## [0.2.5-alpha] - 2026-07-01
 
 Maintenance release: a security fix for a transitive dependency plus CI hardening.
