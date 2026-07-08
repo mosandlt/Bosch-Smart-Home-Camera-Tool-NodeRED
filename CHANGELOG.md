@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## [0.2.7-alpha] - 2026-07-08
+
+CI-only fix: the release-workflow job could crash on `gh release edit`, which does not support `--generate-notes` (create-only), and had two smaller hardening gaps.
+
+- **CI:** `gh release edit`/`gh release create` now always pass `--notes-file`, never `--generate-notes` — the same bug that actually crashed the HA repo's Publish-release job on a tag-edit path.
+- **CI security:** the release version is now passed to `awk` via `-v` instead of being interpolated into the program text, closing an awk/command-injection vector reachable through the pushed tag name.
+- **CI:** a missing `## [VERSION]` CHANGELOG.md section for the tagged release now hard-fails the workflow instead of silently falling back to auto-generated notes.
+
 ## [0.2.6-alpha] - 2026-07-03
 
 Docs-only patch: the "Related Projects" table listed sibling-repo versions several releases behind (Home Assistant, Python CLI, ioBroker, MCP Server, and this repo's own self-reference).
