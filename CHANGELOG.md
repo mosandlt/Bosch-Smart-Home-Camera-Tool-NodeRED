@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## [0.2.8-alpha] - 2026-07-11
+
+CI uplift to match the family's Gold-tier quality bar (HA integration / MCP reference).
+
+- **Coverage:** added `c8` coverage measurement (`npm run coverage`), wired into the `test`
+  CI job. Gated at 85% lines / 70% functions / 75% branches (set just below the measured
+  baseline of 92%/77%/83%, not invented).
+- **CI:** new `codeql.yml` (CodeQL `javascript-typescript`, `security-extended` queries,
+  weekly scheduled scan).
+- **CI:** new `secret-scan.yml` (gitleaks) + `.gitleaks.toml` — allowlists this repo's known
+  intentional non-secrets (the public OSS-app OAuth client_id/secret pair and the pinned
+  Bosch TLS CA certificate in `nodes/lib/bosch-api.js`, both already documented in-code as
+  non-sensitive) without blinding the scanner to anything else.
+- **CI:** new `dependency-review.yml`, gated on `package.json`/`package-lock.json` diffs in
+  PRs, fails on high-severity advisories.
+- No functional/runtime changes. `npm audit --omit=dev`: 0 vulnerabilities.
+
 ## [0.2.7-alpha] - 2026-07-08
 
 CI-only fix: the release-workflow job could crash on `gh release edit`, which does not support `--generate-notes` (create-only), and had two smaller hardening gaps.

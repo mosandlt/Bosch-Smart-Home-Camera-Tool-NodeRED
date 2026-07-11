@@ -38,8 +38,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test
-        run: npm test
+      - name: Test + coverage
+        run: npm run coverage
 
   # Publishes to npm on tag push (v*). Gates on the test job first.
   # Tokenless via npm Trusted Publishing (OIDC): with id-token:write and a
