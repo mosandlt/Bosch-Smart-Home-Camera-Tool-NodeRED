@@ -153,6 +153,42 @@ TLS proxy); set to `LOCAL` for LAN. Camera ID and connection type can be
 overridden at runtime via `msg.cameraId` / `msg.connectionType`. Digest
 credentials embedded in RTSP URLs are redacted in node status and logs (`***:***@`).
 
+### bosch-camera-light (action/query node)
+
+Reads or sets the front-illuminator / wallwasher light state on a Bosch Eyes
+Outdoor camera (LED-light models only). Mode *Read current light state* just
+queries; the fixed on/off presets and *Use msg.payload as patch* mode write
+via a read-modify-write PUT (only the fields you set change).
+
+Input (Mode = *Use msg.payload as patch*): `msg.payload = { frontLightOn, wallwasherOn, frontLightIntensity }`
+— any subset. `frontLightIntensity` is a 0.0-1.0 fraction, not a percentage;
+setting it implicitly turns the front light on (Bosch-side behaviour).
+
+Output: `msg.payload = { cam, frontLightOn, wallwasherOn, frontLightIntensity, success }`
+
+### bosch-camera-motion (action/query node)
+
+Reads or sets motion detection (enabled + sensitivity).
+
+Input (Mode = *Use msg.payload*): `msg.payload = true`/`false` to enable/disable,
+or `{ enabled, sensitivity }` where `sensitivity` is one of
+`OFF`/`LOW`/`MEDIUM_LOW`/`MEDIUM_HIGH`/`HIGH`/`SUPER_HIGH`. Setting a sensitivity
+implicitly enables motion detection.
+
+Output: `msg.payload = { cam, enabled, sensitivity, success }`
+
+### bosch-camera-audio-detection (action/query node)
+
+Reads or sets glass-break / fire-and-smoke-alarm sound detection. Gen2
+Audio-Plus cameras only — Bosch rejects the request on unsupported models
+(surfaced as a node error).
+
+Input (Mode = *Use msg.payload*): `msg.payload = { detectGlassBreak, detectFireAlarm }`
+— any subset; the node reads the current state first and merges, since Bosch
+requires both fields on every write.
+
+Output: `msg.payload = { cam, detectGlassBreak, detectFireAlarm, success }`
+
 ---
 
 ## Example Flow
@@ -239,7 +275,7 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 | 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.4** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
 | 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.7.7** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
 | 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.5** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
-| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.2.5-alpha** · on npm · 5 functional nodes (event / snapshot / privacy / stream-url / config) |
+| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.3.0-alpha** · on npm · 8 functional nodes (event / snapshot / privacy / stream-url / light / motion / audio-detection / config) |
 
 Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — **v0.1.5-alpha** — alpha dashboard.
 

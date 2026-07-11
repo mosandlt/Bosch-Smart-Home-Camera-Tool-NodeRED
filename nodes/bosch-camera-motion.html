@@ -1,0 +1,63 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-motion', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:     { value: '' },
+            server:   { value: '', type: 'bosch-camera-config', required: true },
+            cameraId: { value: '', required: false },
+            mode:     { value: 'get' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'camera.svg',
+        label: function () {
+            return this.name || 'bosch motion';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-motion">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mode"><i class="fa fa-bullseye"></i> Mode</label>
+        <select id="node-input-mode">
+            <option value="get">Read current motion state</option>
+            <option value="on">Enable motion detection</option>
+            <option value="off">Disable motion detection</option>
+            <option value="msg">Use msg.payload (boolean or { enabled, sensitivity })</option>
+        </select>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-motion">
+    <p>Reads or sets motion detection (enabled + sensitivity) on a Bosch Smart Home Camera.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload <span class="property-type">boolean | object</span></dt>
+        <dd>When Mode is <i>Use msg.payload</i>: <code>true</code>/<code>false</code> to enable/disable, or
+        <code>{ "enabled": true, "sensitivity": "MEDIUM_HIGH" }</code>. Setting <code>sensitivity</code> implicitly enables motion detection.</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dt>payload.enabled <span class="property-type">boolean</span></dt>
+        <dt>payload.sensitivity <span class="property-type">string|null</span></dt>
+        <dd>One of OFF / LOW / MEDIUM_LOW / MEDIUM_HIGH / HIGH / SUPER_HIGH, when reported.</dd>
+        <dt>payload.success <span class="property-type">boolean</span></dt>
+    </dl>
+</script>

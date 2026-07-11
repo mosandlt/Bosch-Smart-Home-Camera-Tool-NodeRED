@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+## [0.3.0-alpha] - 2026-07-11
+
+Feature-parity batch 1: 3 new nodes covering camera light control, motion
+detection, and glass-break/fire-alarm sound detection — closing part of the
+gap against the family's Feature Parity Matrix (`docs/family-parity-plan.md` §2b).
+
+- **New node `bosch-camera-light`**: reads or sets the front-illuminator /
+  wallwasher light state (`GET`/`PUT /v11/video_inputs/{id}/lighting_override`,
+  read-modify-write). Fixed on/off presets plus a `msg.payload` patch mode
+  (`frontLightOn`/`wallwasherOn`/`frontLightIntensity`, a 0.0-1.0 fraction).
+  Wallwasher is cloud-write-only — no LAN/RCP fallback exists for it.
+- **New node `bosch-camera-motion`**: reads or sets motion detection
+  (`GET`/`PUT /v11/video_inputs/{id}/motion`) — enable/disable plus sensitivity
+  (`OFF`/`LOW`/`MEDIUM_LOW`/`MEDIUM_HIGH`/`HIGH`/`SUPER_HIGH`). Setting a
+  sensitivity implicitly enables motion detection (Bosch-side behaviour).
+- **New node `bosch-camera-audio-detection`**: reads or sets glass-break /
+  fire-and-smoke-alarm sound detection (`GET`/`PUT /v11/video_inputs/{id}/audioDetectionConfig`,
+  Gen2 Audio-Plus cameras only). Both fields are always sent together on write
+  (the node reads current state first and merges, since Bosch resets an
+  omitted field to `false` server-side).
+- `bosch-api`: added `getLight`/`setLight`, `getMotion`/`setMotion`,
+  `getAudioDetection`/`setAudioDetection` — same TLS-pinned, timeout-guarded
+  pattern as every existing wrapper function.
+- 21 new tests (happy + error paths per node, `node-red-node-test-helper` + `nock`),
+  including an explicit `frontLightIntensity: 0` regression (minimum brightness
+  must not be mistaken for "unset").
+
+**Deliberately out of scope for this release** (documented, not silently
+dropped — see the session notes in `docs/family-parity-plan.md`): lighting
+schedule, wifi/network info, diagnostics, unread count, zones/masks, and
+rules/friends are planned for a follow-up batch. Two-way intercom, pan/PTZ,
+the full alarm suite, and NVR/recording browse are deliberately skipped —
+their session/stateful nature doesn't map cleanly onto Node-RED's
+fire-and-forget node model; revisit only on a concrete user request.
+
 ## [0.2.8-alpha] - 2026-07-11
 
 CI uplift to match the family's Gold-tier quality bar (HA integration / MCP reference).

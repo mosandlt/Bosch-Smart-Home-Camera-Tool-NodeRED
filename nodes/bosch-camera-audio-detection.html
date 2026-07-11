@@ -1,0 +1,63 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-audio-detection', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:     { value: '' },
+            server:   { value: '', type: 'bosch-camera-config', required: true },
+            cameraId: { value: '', required: false },
+            mode:     { value: 'get' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'alert.svg',
+        label: function () {
+            return this.name || 'bosch audio detection';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-audio-detection">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-mode"><i class="fa fa-bell"></i> Mode</label>
+        <select id="node-input-mode">
+            <option value="get">Read current detection state</option>
+            <option value="glass-break-on">Enable glass-break detection</option>
+            <option value="glass-break-off">Disable glass-break detection</option>
+            <option value="fire-alarm-on">Enable fire/smoke-alarm detection</option>
+            <option value="fire-alarm-off">Disable fire/smoke-alarm detection</option>
+            <option value="msg">Use msg.payload ({ detectGlassBreak, detectFireAlarm })</option>
+        </select>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-audio-detection">
+    <p>Reads or sets glass-break / fire-and-smoke-alarm sound detection on a Bosch camera. Only supported on Gen2 Audio-Plus models — Bosch rejects the request (surfaced as a node error) on unsupported cameras.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload <span class="property-type">object</span></dt>
+        <dd>When Mode is <i>Use msg.payload</i>: a partial patch, e.g. <code>{ "detectGlassBreak": true }</code>. The node reads the current state first and merges, since Bosch requires both fields on every write.</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dt>payload.detectGlassBreak <span class="property-type">boolean</span></dt>
+        <dt>payload.detectFireAlarm <span class="property-type">boolean</span></dt>
+        <dt>payload.success <span class="property-type">boolean</span></dt>
+    </dl>
+</script>

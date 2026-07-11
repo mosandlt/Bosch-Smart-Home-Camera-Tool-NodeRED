@@ -303,6 +303,117 @@ async function getStreamUrl(token, cameraId, connectionType = 'REMOTE') {
     return { rtsp, rtsps, hls, raw: data };
 }
 
+// Current camera light state: front illuminator + wallwasher on/off and the
+// front illuminator's brightness fraction.
+// Resolves to { frontLightOn: boolean, wallwasherOn: boolean, frontLightIntensity: number }.
+async function getLight(token, cameraId) {
+    const res = await axios.get(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/lighting_override`,
+        { headers: authHeaders(token), httpsAgent: boschCloudAgent, timeout: TIMEOUT }
+    );
+    const data = res.data || {};
+    return {
+        frontLightOn: !!data.frontLightOn,
+        wallwasherOn: !!data.wallwasherOn,
+        frontLightIntensity: typeof data.frontLightIntensity === 'number' ? data.frontLightIntensity : null
+    };
+}
+
+// Set camera light state. `patch` may set any of frontLightOn/wallwasherOn
+// (boolean) / frontLightIntensity (0.0-1.0 fraction, NOT a percentage).
+// Read-modify-write: fetches current state first and only overwrites the
+// fields present in `patch`, matching the Bosch Python CLI's behaviour.
+// Setting frontLightIntensity implicitly turns the front light on (Bosch-side
+// behaviour, not something this wrapper needs to special-case).
+async function setLight(token, cameraId, patch) {
+    const current = await getLight(token, cameraId);
+    const body = {
+        frontLightOn: patch.frontLightOn !== undefined ? !!patch.frontLightOn : current.frontLightOn,
+        wallwasherOn: patch.wallwasherOn !== undefined ? !!patch.wallwasherOn : current.wallwasherOn,
+        frontLightIntensity: patch.frontLightIntensity !== undefined
+            ? patch.frontLightIntensity
+            : current.frontLightIntensity
+    };
+    await axios.put(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/lighting_override`,
+        body,
+        {
+            headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+            httpsAgent: boschCloudAgent,
+            timeout: TIMEOUT
+        }
+    );
+    return body;
+}
+
+// Current motion-detection state.
+// Resolves to { enabled: boolean, sensitivity: string|null } where sensitivity
+// is one of OFF/LOW/MEDIUM_LOW/MEDIUM_HIGH/HIGH/SUPER_HIGH (when reported).
+async function getMotion(token, cameraId) {
+    const res = await axios.get(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/motion`,
+        { headers: authHeaders(token), httpsAgent: boschCloudAgent, timeout: TIMEOUT }
+    );
+    const data = res.data || {};
+    return {
+        enabled: !!data.enabled,
+        sensitivity: data.motionAlarmConfiguration || data.sensitivity || null
+    };
+}
+
+// Set motion detection. `enabled` (boolean, required). `sensitivity` (optional
+// string, one of OFF/LOW/MEDIUM_LOW/MEDIUM_HIGH/HIGH/SUPER_HIGH) — setting it
+// implicitly enables motion detection (Bosch-side behaviour).
+async function setMotion(token, cameraId, enabled, sensitivity = null) {
+    const body = { enabled: sensitivity != null ? true : !!enabled };
+    if (sensitivity != null) {
+        body.motionAlarmConfiguration = sensitivity;
+    }
+    await axios.put(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/motion`,
+        body,
+        {
+            headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+            httpsAgent: boschCloudAgent,
+            timeout: TIMEOUT
+        }
+    );
+    // Normalise to the same shape as getMotion() (sensitivity, not the wire
+    // field name motionAlarmConfiguration) so callers get one consistent shape
+    // regardless of whether they read or wrote.
+    return { enabled: body.enabled, sensitivity: sensitivity != null ? sensitivity : null };
+}
+
+// Current glass-break / fire-alarm sound-detection state (Gen2 Audio-Plus
+// cameras only). Resolves to { detectGlassBreak: boolean, detectFireAlarm: boolean }.
+async function getAudioDetection(token, cameraId) {
+    const res = await axios.get(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/audioDetectionConfig`,
+        { headers: authHeaders(token), httpsAgent: boschCloudAgent, timeout: TIMEOUT }
+    );
+    const data = res.data || {};
+    return {
+        detectGlassBreak: !!data.detectGlassBreak,
+        detectFireAlarm: !!data.detectFireAlarm
+    };
+}
+
+// Set glass-break / fire-alarm sound detection. Both fields are always sent
+// together (Bosch API requirement — omitting one resets it to false server-side).
+async function setAudioDetection(token, cameraId, detectGlassBreak, detectFireAlarm) {
+    const body = { detectGlassBreak: !!detectGlassBreak, detectFireAlarm: !!detectFireAlarm };
+    await axios.put(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/audioDetectionConfig`,
+        body,
+        {
+            headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+            httpsAgent: boschCloudAgent,
+            timeout: TIMEOUT
+        }
+    );
+    return body;
+}
+
 // Replace the userinfo section (user:pass@) in a stream URL with "***:***@"
 // so it is safe to emit in node logs/status.
 function redactStreamUrl(url) {
@@ -320,6 +431,12 @@ module.exports = {
     getStreamUrl,
     redactStreamUrl,
     verifyCloudPeerCert,
+    getLight,
+    setLight,
+    getMotion,
+    setMotion,
+    getAudioDetection,
+    setAudioDetection,
     BoschCloudAgent,
     KEYCLOAK_TOKEN_URL,
     CLOUD_API,
