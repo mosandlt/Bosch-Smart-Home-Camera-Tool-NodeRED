@@ -1,0 +1,43 @@
+# gitleaks config — extends the built-in default ruleset (JWTs, API keys,
+# private keys, generic tokens) with narrow allowlists for this repo's known,
+# intentionally-present values, so CI secret-scanning stays green while still
+# catching real, accidentally-committed credentials.
+
+title = "node-red-contrib-bosch-camera gitleaks config"
+
+[extend]
+useDefault = true
+
+# nodes/lib/bosch-api.js embeds the public OSS-app OAuth client_id/client_secret
+# pair (base64-encoded to stay out of plaintext scanners, matches the identical
+# value shipped by the Bosch Camera Python CLI / HA integration / ioBroker
+# adapter) plus a PEM-encoded public intermediate CA certificate used for TLS
+# pinning against Bosch's cloud API. Neither is a secret: the client secret is
+# a public OSS-app identifier (not a user credential), and a CA certificate is
+# public-key material by definition. Allowlisted by their exact source strings.
+[[allowlists]]
+regexTarget = "line"
+regexes = [
+  '''RjFqWnpzRzVOdHc3eDJWVmM4SjZxZ3NuaXNNT2ZhWmc=''',
+]
+
+[[allowlists]]
+paths = [
+  '''nodes/lib/bosch-api\.js''',
+]
+regexes = [
+  '''-----BEGIN CERTIFICATE-----''',
+]
+
+# Generated / local-only artifact directories — never hold committed secrets.
+[[allowlists]]
+paths = [
+  '''coverage/.*''',
+  '''node_modules/.*''',
+]
+
+# Known-FAKE fixture values used in tests (documented fake token/camera IDs).
+[[allowlists]]
+regexes = [
+  '''(?:aa:bb:cc:dd:ee:ff)''',
+]

@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-bosch-camera",
-  "version": "0.2.7-alpha",
+  "version": "0.2.8-alpha",
   "description": "Node-RED nodes for Bosch Smart Home Cameras (Eyes Outdoor/Indoor, 360, Gen2) — events, snapshots, privacy control",
   "author": {
     "name": "mosandlt",
@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "c8": "^10.1.3",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
     "mocha": "^11.7.6",
@@ -49,6 +50,7 @@
   "scripts": {
     "lint": "eslint nodes/",
     "test": "mocha \"test/**/*_spec.js\" --timeout 8000",
+    "coverage": "c8 --reporter=text --reporter=lcov --check-coverage --lines 85 --functions 70 --branches 75 npm test",
     "prepublishOnly": "npm run lint && npm test"
   },
   "files": [

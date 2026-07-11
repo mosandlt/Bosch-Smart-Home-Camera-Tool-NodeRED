@@ -3,10 +3,12 @@
 [![NPM version](https://img.shields.io/npm/v/node-red-contrib-bosch-camera.svg)](https://www.npmjs.com/package/node-red-contrib-bosch-camera)
 [![Downloads](https://img.shields.io/npm/dm/node-red-contrib-bosch-camera.svg)](https://www.npmjs.com/package/node-red-contrib-bosch-camera)
 [![CI](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED/actions/workflows/ci.yml/badge.svg)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED/actions/workflows/codeql.yml/badge.svg)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED/actions/workflows/codeql.yml)
+[![Secret scan](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED/actions/workflows/secret-scan.yml)
 
 Node-RED nodes for Bosch Smart Home Cameras (Eyes Outdoor, 360° Indoor, Eyes Outdoor II, Eyes Indoor II) via the Bosch Smart Home cloud API.
 
-> **Alpha — functional.** The four nodes talk to the Bosch cloud API and are covered by tests, but the surface is young. Field-test before relying on it in production flows.
+> **Alpha — functional.** The nodes talk to the Bosch cloud API and are covered by tests, but the surface is young. Field-test before relying on it in production flows.
 
 > **No official API.** These nodes use the reverse-engineered Bosch Cloud API, discovered via traffic analysis of the official Bosch Smart Camera app — the same API the [sibling projects](#related-projects) use.
 

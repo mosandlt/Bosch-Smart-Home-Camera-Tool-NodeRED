@@ -1,0 +1,6 @@
+{
+  "all": true,
+  "include": ["nodes/**/*.js"],
+  "exclude": ["nodes/**/*.html", "test/**"],
+  "reporter": ["text", "lcov"]
+}
