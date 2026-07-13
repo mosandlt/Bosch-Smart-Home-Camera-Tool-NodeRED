@@ -189,6 +189,36 @@ requires both fields on every write.
 
 Output: `msg.payload = { cam, detectGlassBreak, detectFireAlarm, success }`
 
+### bosch-camera-nvr-record (action node)
+
+Spawns/manages an `ffmpeg` subprocess that pulls a camera's local
+RTSP/RTSPS stream and writes it to disk as fixed-length segments
+(`-f segment -c copy`). Continuous mode only.
+
+Input: `msg.payload`/`msg.topic` = `start`/`stop`/`on`/`off`/`1`/`0`
+(case-insensitive), or configure autostart-on-deploy in the editor.
+
+Output: status/lifecycle messages as the node transitions
+idle → starting → recording → stopping.
+
+### bosch-camera-firmware-status (query node)
+
+Reads camera firmware status via `GET /v11/video_inputs/{id}/firmware`.
+
+Output: `msg.payload = { cam, installedVersion, latestVersion, upToDate, updating, status }`
+
+### bosch-camera-firmware-install (action node)
+
+Triggers a firmware install (`PUT /v11/video_inputs/{id}/firmware`). This
+reboots the camera for ~3-7 minutes — the node only proceeds when
+`msg.payload` is strictly `{ confirm: true }`, and refuses to install when
+the camera already reports `updating` or is already up to date.
+
+Input: `msg.payload = { confirm: true }` (any other input is rejected
+before any network call)
+
+Output: `msg.payload = { cam, triggered, reason? }`
+
 ---
 
 ## Example Flow
@@ -210,7 +240,7 @@ for a one-tap privacy switch.
 ```bash
 npm install
 npm run lint     # eslint (flat config) over nodes/
-npm test         # mocha + node-red-node-test-helper + nock (31 specs)
+npm test         # mocha + node-red-node-test-helper + nock (15 specs)
 ```
 
 The HTTP layer lives in `nodes/lib/bosch-api.js` (no Node-RED dependency, unit-testable). Each node has happy- and error-path tests; CI runs the suite on Node 22 + 24.
@@ -275,7 +305,7 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 | 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.4** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
 | 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.7.7** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
 | 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.5** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
-| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.3.0-alpha** · on npm · 8 functional nodes (event / snapshot / privacy / stream-url / light / motion / audio-detection / config) |
+| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.4.0-alpha** · on npm · 11 functional nodes (event / snapshot / privacy / stream-url / light / motion / audio-detection / nvr-record / firmware-status / firmware-install / config) |
 
 Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — **v0.1.5-alpha** — alpha dashboard.
 

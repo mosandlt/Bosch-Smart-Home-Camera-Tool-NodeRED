@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+## [0.4.0-alpha] - 2026-07-13
+
+Feature-parity batch 2: local NVR recording plus firmware status/install —
+closing more of the gap against the family's Feature Parity Matrix
+(`docs/family-parity-plan.md` §2b).
+
+- **New node `bosch-camera-nvr-record`**: spawns/manages an `ffmpeg`
+  subprocess that pulls a camera's local RTSP/RTSPS stream (via the existing
+  cloud connection API) and writes it to disk as fixed-length segments
+  (`-f segment -c copy`). Continuous mode only — a ring-buffer/pre-roll
+  "event buffered" mode was scoped out as it doesn't fit this repo's
+  stateless flow-node paradigm. Start/stop via `msg.payload`/`msg.topic`
+  (start/stop/on/off/1/0, case-insensitive) or autostart-on-deploy. A small
+  state machine (idle → starting → recording → stopping) plus a
+  `cancelRequested` flag guards every transition so overlapping start/stop
+  messages, and node close (undeploy/redeploy) firing mid-flight, can never
+  leak an untracked ffmpeg process or double-spawn one. SIGTERM → SIGKILL
+  escalation on stop/close, with a hard safety-net timer so undeploy never
+  blocks indefinitely on an unkillable process.
+- **New node `bosch-camera-firmware-status`** (query, read-only): `GET
+  /v11/video_inputs/{id}/firmware`, normalises the wire response
+  (current/upToDate/update/updating/status) into
+  `installedVersion`/`latestVersion`/`upToDate`/`updating`/`status`.
+- **New node `bosch-camera-firmware-install`** (action): `PUT
+  /v11/video_inputs/{id}/firmware {"id": <latestVersion>}`, ported
+  byte-accurate against the sibling HA integration's endpoint/field contract.
+  Triggers a real camera reboot (~3-7 min), so it only proceeds when
+  `msg.payload` is strictly `{confirm: true}` — any other input is rejected
+  before any network call. Always re-reads firmware status fresh before
+  installing and refuses to PUT when the camera already reports `updating`
+  or is already up to date (reported as a non-error `triggered: false`
+  output, not a flow error). A local busy-guard blocks a second install for
+  the same node instance while one is still in flight.
+- `bosch-api`: added `getFirmware()`/`installFirmware()` wrappers, same
+  TLS-pinned/timeout-guarded pattern as every existing function.
+- 46 new tests (nvr-record: 28, firmware-status/install: 18), 100% line
+  coverage on all three new nodes. Every change hardened via
+  THREE_PER_ISSUE_PER_CHANGE adversarial sub-agent bug-hunts before release
+  (nvr-record: 3 rounds, fixed a concurrent-start double-spawn race, a stop
+  escalation-timer reset bug, a false "already recording" report during an
+  in-flight stop, close-during-transition handling, and a test-infra flake;
+  firmware nodes: node logic/editor-help/API-contract review, no bugs found).
+
 ## [0.3.0-alpha] - 2026-07-11
 
 Feature-parity batch 1: 3 new nodes covering camera light control, motion
