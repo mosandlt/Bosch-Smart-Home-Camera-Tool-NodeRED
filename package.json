@@ -29,7 +29,8 @@
       "bosch-camera-stream-url": "nodes/bosch-camera-stream-url.js",
       "bosch-camera-light": "nodes/bosch-camera-light.js",
       "bosch-camera-motion": "nodes/bosch-camera-motion.js",
-      "bosch-camera-audio-detection": "nodes/bosch-camera-audio-detection.js"
+      "bosch-camera-audio-detection": "nodes/bosch-camera-audio-detection.js",
+      "bosch-camera-nvr-record": "nodes/bosch-camera-nvr-record.js"
     }
   },
   "dependencies": {

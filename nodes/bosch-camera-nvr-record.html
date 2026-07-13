@@ -1,0 +1,122 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-nvr-record', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:           { value: '' },
+            server:         { value: '', type: 'bosch-camera-config', required: true },
+            cameraId:       { value: '', required: false },
+            connectionType: { value: 'LOCAL' },  // 'LOCAL' | 'REMOTE'
+            outputDir:      { value: '', required: true },
+            segmentTime:    { value: 300, validate: RED.validators.number() },
+            ffmpegPath:     { value: 'ffmpeg' },
+            stopGraceMs:    { value: 5000, validate: RED.validators.number() },
+            autostart:      { value: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'camera.svg',
+        label: function () {
+            return this.name || 'bosch nvr record';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-nvr-record">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-connectionType"><i class="fa fa-plug"></i> Connection</label>
+        <select id="node-input-connectionType">
+            <option value="LOCAL">LOCAL (LAN — recommended, same network as SHC only)</option>
+            <option value="REMOTE">REMOTE (cloud proxy — works from anywhere, uses cloud bandwidth)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-outputDir"><i class="fa fa-folder-open"></i> Output dir</label>
+        <input type="text" id="node-input-outputDir" placeholder="/data/nvr/camera1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-segmentTime"><i class="fa fa-clock-o"></i> Segment (s)</label>
+        <input type="number" id="node-input-segmentTime" min="10" step="1" placeholder="300">
+    </div>
+    <div class="form-row">
+        <label for="node-input-ffmpegPath"><i class="fa fa-terminal"></i> ffmpeg path</label>
+        <input type="text" id="node-input-ffmpegPath" placeholder="ffmpeg">
+    </div>
+    <div class="form-row">
+        <label for="node-input-stopGraceMs"><i class="fa fa-hourglass-half"></i> Stop grace (ms)</label>
+        <input type="number" id="node-input-stopGraceMs" min="50" step="50" placeholder="5000">
+    </div>
+    <div class="form-row">
+        <label for="node-input-autostart"><i class="fa fa-play"></i> Autostart</label>
+        <input type="checkbox" id="node-input-autostart" style="display:inline-block; width:auto; vertical-align:top;">
+        <span>start recording on deploy</span>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-nvr-record">
+    <p>Continuous local NVR recording: opens the camera's local RTSP/RTSPS stream
+    and spawns an <code>ffmpeg</code> subprocess that writes it to disk as
+    fixed-length, non-re-encoded (<code>-c copy</code>) segments.</p>
+
+    <p><b>Continuous mode only.</b> This node does not implement a ring-buffer /
+    pre-roll-postroll "event buffered" mode — that requires state and a
+    long-running supervisor process, which does not fit this repo's stateless
+    message-in/message-out flow-node design. Trigger recording from motion
+    events or a schedule using standard Node-RED flow logic instead.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">payload / topic <span class="property-type">string | boolean</span></dt>
+        <dd><code>'start'</code> (or <code>true</code>/<code>'on'</code>/<code>1</code>, case-insensitive) begins
+        recording; <code>'stop'</code> (or <code>false</code>/<code>'off'</code>/<code>0</code>) stops it.
+        <code>msg.topic</code> is checked first using the same rules — when it yields a recognised
+        command it takes precedence over <code>msg.payload</code>, otherwise <code>msg.payload</code> is used.</dd>
+        <dt class="optional">cameraId <span class="property-type">string</span></dt>
+        <dd>Override the configured Camera ID at runtime.</dd>
+        <dt class="optional">connectionType <span class="property-type">string</span></dt>
+        <dd>Override the connection type at runtime (<code>'LOCAL'</code> or <code>'REMOTE'</code>).</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dt>payload.recording <span class="property-type">boolean</span></dt>
+        <dt>payload.pid <span class="property-type">number | null</span></dt>
+        <dd>ffmpeg process id while recording, <code>null</code> once stopped.</dd>
+        <dt>payload.outputDir <span class="property-type">string</span></dt>
+    </dl>
+
+    <h3>Details</h3>
+    <p>Requires an <code>ffmpeg</code> binary reachable at <b>ffmpeg path</b> (default: on
+    <code>PATH</code>). The output directory must exist and be writable by the Node-RED
+    process — this node does not create it.</p>
+    <p>Segments are named <code>%Y%m%d-%H%M%S.mp4</code> inside <b>Output dir</b>. A new file
+    starts every <b>Segment (s)</b> seconds (min 10 s).</p>
+    <p>A <code>'stop'</code> message or the node being undeployed/redeployed sends
+    <code>SIGTERM</code> to ffmpeg, escalating to <code>SIGKILL</code> after
+    <b>Stop grace (ms)</b> if it hasn't exited by itself. Undeploying/redeploying
+    always waits for ffmpeg to actually exit before Node-RED considers the node
+    stopped (bounded by <b>Stop grace (ms)</b> plus a short fixed safety margin) —
+    even if a start was still opening the connection (aborted before ffmpeg ever
+    launches) or a stop was already in progress when the redeploy happened.</p>
+    <p>With <b>Autostart</b> enabled, recording begins automatically once the flow
+    is deployed — no 'start' message needed.</p>
+    <p>Stream URLs may embed Digest credentials in the userinfo component
+    (<code>rtsp://user:pass@host/...</code>). The node <em>never</em> logs the raw URL —
+    only a redacted form (<code>***:***@</code>) appears in node status and the log.</p>
+</script>
