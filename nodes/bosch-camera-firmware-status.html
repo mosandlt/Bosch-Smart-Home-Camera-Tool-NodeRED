@@ -1,0 +1,61 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-firmware-status', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:     { value: '' },
+            server:   { value: '', type: 'bosch-camera-config', required: true },
+            cameraId: { value: '', required: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'cog.svg',
+        label: function () {
+            return this.name || 'bosch firmware status';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-firmware-status">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-firmware-status">
+    <p>Reads a camera's current firmware status from the Bosch cloud (read-only).</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">cameraId <span class="property-type">string</span></dt>
+        <dd>Override the configured Camera ID at runtime. Any other <code>msg.payload</code> content is ignored — any input message triggers a fresh read.</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dt>payload.installedVersion <span class="property-type">string | null</span></dt>
+        <dt>payload.latestVersion <span class="property-type">string | null</span></dt>
+        <dd>The version that would be installed by <code>bosch-camera-firmware-install</code>; <code>null</code> when no update is known/available.</dd>
+        <dt>payload.upToDate <span class="property-type">boolean | null</span></dt>
+        <dd><code>null</code> when Bosch has not reported this yet.</dd>
+        <dt>payload.updating <span class="property-type">boolean</span></dt>
+        <dd><code>true</code> while an install is already in progress on the camera (started via this integration, the official Bosch app, or automatically by Bosch).</dd>
+        <dt>payload.status <span class="property-type">string | null</span></dt>
+    </dl>
+    <h3>Details</h3>
+    <p>This node never triggers an install. Pair it with the
+    <b>bosch-camera-firmware-install</b> node — e.g. show <code>payload.upToDate</code>
+    on a dashboard, then let a user explicitly confirm before wiring a
+    <code>{"confirm": true}</code> message into the install node.</p>
+</script>

@@ -30,7 +30,9 @@
       "bosch-camera-light": "nodes/bosch-camera-light.js",
       "bosch-camera-motion": "nodes/bosch-camera-motion.js",
       "bosch-camera-audio-detection": "nodes/bosch-camera-audio-detection.js",
-      "bosch-camera-nvr-record": "nodes/bosch-camera-nvr-record.js"
+      "bosch-camera-nvr-record": "nodes/bosch-camera-nvr-record.js",
+      "bosch-camera-firmware-status": "nodes/bosch-camera-firmware-status.js",
+      "bosch-camera-firmware-install": "nodes/bosch-camera-firmware-install.js"
     }
   },
   "dependencies": {

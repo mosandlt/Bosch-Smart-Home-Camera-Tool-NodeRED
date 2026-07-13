@@ -414,6 +414,48 @@ async function setAudioDetection(token, cameraId, detectGlassBreak, detectFireAl
     return body;
 }
 
+// Current firmware status of a camera.
+// Wire response fields (verified against the sibling HA integration, which
+// talks to the same endpoint): { current, upToDate, update, updating, status }.
+// Resolves to a normalised shape:
+//   { installedVersion: string|null, latestVersion: string|null,
+//     upToDate: boolean|null, updating: boolean, status: string|null }
+// `latestVersion` is the "update" field — the version installFirmware() would
+// install; it may be null/absent when no update is available or not yet known.
+async function getFirmware(token, cameraId) {
+    const res = await axios.get(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/firmware`,
+        { headers: authHeaders(token), httpsAgent: boschCloudAgent, timeout: TIMEOUT }
+    );
+    const data = res.data || {};
+    return {
+        installedVersion: data.current != null ? data.current : null,
+        latestVersion: data.update != null ? data.update : null,
+        upToDate: typeof data.upToDate === 'boolean' ? data.upToDate : null,
+        updating: !!data.updating,
+        status: data.status != null ? data.status : null
+    };
+}
+
+// Trigger a firmware install: PUT the target version id to the camera's
+// firmware endpoint. Bosch answers 200/201/204 on success.
+//
+// PHYSICAL SIDE EFFECT: this reboots the camera for ~3-7 minutes (verified
+// against the sibling HA integration's v14.4.10 release notes). Callers MUST
+// gate this behind an explicit user confirmation — never trigger it as a
+// side effect of an ordinary poll/status message.
+async function installFirmware(token, cameraId, targetVersion) {
+    await axios.put(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/firmware`,
+        { id: targetVersion },
+        {
+            headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+            httpsAgent: boschCloudAgent,
+            timeout: TIMEOUT
+        }
+    );
+}
+
 // Replace the userinfo section (user:pass@) in a stream URL with "***:***@"
 // so it is safe to emit in node logs/status.
 function redactStreamUrl(url) {
@@ -437,6 +479,8 @@ module.exports = {
     setMotion,
     getAudioDetection,
     setAudioDetection,
+    getFirmware,
+    installFirmware,
     BoschCloudAgent,
     KEYCLOAK_TOKEN_URL,
     CLOUD_API,

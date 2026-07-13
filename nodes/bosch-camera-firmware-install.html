@@ -1,0 +1,91 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-firmware-install', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:     { value: '' },
+            server:   { value: '', type: 'bosch-camera-config', required: true },
+            cameraId: { value: '', required: false }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'cog.svg',
+        label: function () {
+            return this.name || 'bosch firmware install';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-firmware-install">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+    <div class="form-row">
+        <p style="color:#a94442; background:#f2dede; border:1px solid #ebccd1; border-radius:4px; padding:8px;">
+            <i class="fa fa-warning"></i>
+            <b>Reboots the physical camera for ~3-7 minutes.</b>
+            This node only ever installs firmware when it receives a message whose
+            <code>payload</code> is <code>{ "confirm": true }</code> — any other input
+            is rejected and makes <em>no</em> network call. Do not wire an
+            untrusted/automatic trigger straight into this node.
+        </p>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-firmware-install">
+    <p><b>Physically effective node:</b> triggers a real firmware install on the
+    camera, which reboots it for roughly 3-7 minutes. This is not reversible
+    from software once triggered.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">object</span></dt>
+        <dd>Must be <code>{ "confirm": true }</code> (the literal boolean <code>true</code>,
+        not a truthy string) — any other payload shape is rejected with a flow
+        error and <b>no network call is made at all</b>. This node deliberately does
+        not fire on every incoming message the way the other action nodes in this
+        repo do, since the effect here is a real device reboot.</dd>
+        <dt class="optional">cameraId <span class="property-type">string</span></dt>
+        <dd>Override the configured Camera ID at runtime.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dt>payload.triggered <span class="property-type">boolean</span></dt>
+        <dd><code>true</code> only if the install PUT was actually sent this message.</dd>
+        <dt>payload.reason <span class="property-type">string | null</span></dt>
+        <dd><code>null</code> when triggered; otherwise <code>"up_to_date"</code> (nothing
+        to install) or <code>"already_updating"</code> (an install is already in
+        progress on the camera) — both are reported as normal output, not a flow
+        error, since "nothing to do" is an expected outcome.</dd>
+        <dt>payload.installedVersion <span class="property-type">string | null</span></dt>
+        <dt>payload.targetVersion <span class="property-type">string | null</span></dt>
+        <dt>payload.upToDate <span class="property-type">boolean | null</span></dt>
+        <dt>payload.updating <span class="property-type">boolean</span></dt>
+        <dt>payload.success <span class="property-type">boolean</span></dt>
+    </dl>
+
+    <h3>Details</h3>
+    <p>Before installing, this node always re-reads the camera's current
+    firmware status fresh (no caching) and refuses to send the install
+    request when the camera reports an install already in progress, or when
+    no update is currently available. A local guard also blocks a second
+    install request for the same node while an earlier one from this node is
+    still in flight, so two confirm messages arriving close together cannot
+    trigger two overlapping installs.</p>
+    <p>Pair this with <b>bosch-camera-firmware-status</b> to show update
+    availability on a dashboard before asking a user to confirm.</p>
+</script>
