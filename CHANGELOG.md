@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## [0.4.1-alpha] - 2026-07-14
+
+Docs-only release: refreshed the sibling-repo version table in README's
+Integration Comparison section. No functional changes.
+
 ## [0.4.0-alpha] - 2026-07-13
 
 Feature-parity batch 2: local NVR recording plus firmware status/install —
