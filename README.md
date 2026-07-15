@@ -32,6 +32,7 @@ Node-RED nodes for Bosch Smart Home Cameras (Eyes Outdoor, 360° Indoor, Eyes Ou
 - [Example Flow](#example-flow)
 - [Development](#development)
 - [Release Process](#release-process)
+- [Integration Comparison](#integration-comparison)
 - [Related Projects](#related-projects)
 - [Changelog](#changelog)
 - [License](#license)
@@ -233,6 +234,11 @@ Privacy automation (turn privacy on at night via an inject + the privacy node in
 fixed *on* mode), or wire a dashboard button to a privacy node in *toggle* mode
 for a one-tap privacy switch.
 
+There is no importable example-flow JSON in this repo yet (see the alpha
+disclaimer at the top) — the flows above are simple enough to wire by hand
+from the palette. If you build a useful flow, a PR adding it under an
+`examples/` directory is welcome.
+
 ---
 
 ## Development
@@ -240,10 +246,18 @@ for a one-tap privacy switch.
 ```bash
 npm install
 npm run lint     # eslint (flat config) over nodes/
-npm test         # mocha + node-red-node-test-helper + nock (15 specs)
+npm test         # mocha + node-red-node-test-helper + nock (15 spec files)
+npm run coverage # c8, gated at 85% lines / 70% functions / 75% branches
 ```
 
-The HTTP layer lives in `nodes/lib/bosch-api.js` (no Node-RED dependency, unit-testable). Each node has happy- and error-path tests; CI runs the suite on Node 22 + 24.
+The HTTP layer lives in `nodes/lib/bosch-api.js` (no Node-RED dependency,
+unit-testable in isolation) — Bosch cloud calls, TLS certificate pinning
+(private CA + system roots), Digest-credential redaction, and one wrapper
+function per API endpoint the nodes use. Each node has happy- and error-path
+tests via `node-red-node-test-helper` + `nock`-mocked HTTP; CI (`ci.yml`,
+GitHub Actions) runs lint + the full suite on Node 22 and 24, plus a separate
+weekly CodeQL scan (`codeql.yml`) and a secret-scan gate (`secret-scan.yml`,
+gitleaks) on every push.
 
 ---
 
@@ -303,13 +317,13 @@ Part of a five-implementation family for Bosch Smart Home Cameras (plus an alpha
 
 | Implementation | Repo | Status |
 |---|---|---|
-| 🏆 Home Assistant Integration | [Bosch-Smart-Home-Camera-Tool-HomeAssistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) | **v14.4.1** · HA Quality Scale **Platinum** · production-ready |
-| 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.4** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
-| 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.7.7** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
-| 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.5.5** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
-| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.4.0-alpha** · on npm · 11 functional nodes (event / snapshot / privacy / stream-url / light / motion / audio-detection / nvr-record / firmware-status / firmware-install / config) |
+| 🏆 Home Assistant Integration | [Bosch-Smart-Home-Camera-Tool-HomeAssistant](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-HomeAssistant) | **v16.0.0** · HA Quality Scale **Platinum** · production-ready |
+| 🐍 Python CLI | [Bosch-Smart-Home-Camera-Tool-Python](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python) | **v10.10.6** · Mini-NVR + SMB upload (BETA) · LAN-fallback · PTZ presets · webhook delivery |
+| 🟢 ioBroker Adapter | [ioBroker.bosch-smart-home-camera](https://github.com/mosandlt/ioBroker.bosch-smart-home-camera) | **v1.7.8** · stable · npm · MQTT bridge · PTZ presets · VIS-2 widgets (BoschCamera + BoschOverview) |
+| 🤖 MCP Server | [Bosch-Smart-Home-Camera-Tool-MCP](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-MCP) | **v1.6.0** · cred-rotation · PTZ presets · TOFU cert pinning · Claude integration |
+| 🔴 **Node-RED nodes** (this repo) | [Bosch-Smart-Home-Camera-Tool-NodeRED](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-NodeRED) | **v0.4.1-alpha** · on npm · 11 functional nodes (event / snapshot / privacy / stream-url / light / motion / audio-detection / nvr-record / firmware-status / firmware-install / config) |
 
-Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — **v0.1.5-alpha** — alpha dashboard.
+Also: [Bosch Smart Home Camera — Python Frontend (NiceGUI)](https://github.com/mosandlt/Bosch-Smart-Home-Camera-Tool-Python-frontend) — **v0.1.6a0** — alpha dashboard.
 
 Home Assistant stays the **reference implementation** — features land there first; the other projects catch up over time.
 
@@ -318,6 +332,15 @@ Home Assistant stays the **reference implementation** — features land there fi
 ## Changelog
 
 Full history in [`CHANGELOG.md`](./CHANGELOG.md). Latest:
+
+### 0.4.1-alpha (2026-07-14)
+Docs-only release: refreshed the sibling-repo version table in this README's Integration Comparison section. No functional changes.
+
+### 0.4.0-alpha (2026-07-13)
+New `bosch-camera-nvr-record` node — spawns/manages an `ffmpeg` subprocess that pulls a camera's local RTSP/RTSPS stream and writes it to disk as fixed-length segments (continuous mode only; a stateless flow node doesn't map cleanly onto a stateful ring-buffer/pre-roll design, so that mode was deliberately scoped out). New `bosch-camera-firmware-status` (read-only) and `bosch-camera-firmware-install` (guarded — only fires on a strict `{confirm: true}` payload, refuses when already updating or up to date) nodes.
+
+### 0.3.0-alpha (2026-07-11)
+Three new nodes: `bosch-camera-light` (front-illuminator/wallwasher read+patch), `bosch-camera-motion` (enable/disable + sensitivity), `bosch-camera-audio-detection` (glass-break/fire-alarm sound detection, Gen2 Audio-Plus only).
 
 ### 0.2.3-alpha (2026-06-12)
 Fix: Bosch cloud connections failed with `unable to get issuer certificate` after the v0.2.1 TLS hardening. Node has no OpenSSL `PARTIAL_CHAIN` flag, so pinning only the Bosch intermediate could not anchor the chain. Cloud certificates are now verified directly (hostname + validity + system-root chain or pinned-Bosch-CA signature); full MITM protection preserved.
