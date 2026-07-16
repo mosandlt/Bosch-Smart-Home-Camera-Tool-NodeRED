@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.4.2-alpha] - 2026-07-16
+
+Docs-only release: fixed the MCP row in the shared Integration Comparison
+table (shares the Python CLI's `bosch_config.json` rather than its own
+OAuth2 PKCE flow) and a broader README refresh (stale sibling versions,
+changelog excerpt, dev/example-flow detail). No functional changes.
+
 ## [0.4.1-alpha] - 2026-07-14
 
 Docs-only release: refreshed the sibling-repo version table in README's
