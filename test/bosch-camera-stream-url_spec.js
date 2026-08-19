@@ -37,7 +37,7 @@ describe('bosch-camera-stream-url', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'REMOTE', highQualityVideo: true })
+                    { type: 'REMOTE', highQualityVideo: false })
                 .reply(200, {
                     rtspUrl:  'rtsp://u:p@proxy.example.com:554/live/fake',
                     rtspsUrl: 'rtsps://u:p@proxy.example.com:322/live/fake',
@@ -47,10 +47,12 @@ describe('bosch-camera-stream-url', function () {
             const h1 = helper.getNode('h1');
             h1.on('input', function (msg) {
                 try {
-                    assert.strictEqual(msg.payload.rtsp,  'rtsp://u:p@proxy.example.com:554/live/fake');
-                    assert.strictEqual(msg.payload.rtsps, 'rtsps://u:p@proxy.example.com:322/live/fake');
+                    // Default quality 'auto' appends '?inst=2' (getQualityParams).
+                    assert.strictEqual(msg.payload.rtsp,  'rtsp://u:p@proxy.example.com:554/live/fake?inst=2');
+                    assert.strictEqual(msg.payload.rtsps, 'rtsps://u:p@proxy.example.com:322/live/fake?inst=2');
                     assert.strictEqual(msg.payload.hls,   null);
                     assert.strictEqual(msg.payload.connectionType, 'REMOTE');
+                    assert.strictEqual(msg.payload.quality, 'auto');
                     assert.strictEqual(msg.payload.cam, FAKE_CAM);
                     assert.ok(typeof msg.payload.timestamp === 'string');
                     done();
@@ -72,7 +74,7 @@ describe('bosch-camera-stream-url', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'LOCAL', highQualityVideo: true })
+                    { type: 'LOCAL', highQualityVideo: false })
                 .reply(200, {
                     rtspUrl: 'rtsp://192.0.2.1:554/live/fake'
                 });
@@ -102,7 +104,7 @@ describe('bosch-camera-stream-url', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'REMOTE', highQualityVideo: true })
+                    { type: 'REMOTE', highQualityVideo: false })
                 .reply(200, {
                     hlsUrl: 'https://proxy.example.com/hls/fake.m3u8'
                 });
@@ -134,7 +136,7 @@ describe('bosch-camera-stream-url', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(OVERRIDE_CAM) + '/connection',
-                    { type: 'REMOTE', highQualityVideo: true })
+                    { type: 'REMOTE', highQualityVideo: false })
                 .reply(200, {
                     rtspsUrl: 'rtsps://u:p@proxy.example.com:322/live/override'
                 });
@@ -147,6 +149,61 @@ describe('bosch-camera-stream-url', function () {
                 } catch (e) { done(e); }
             });
             helper.getNode('n1').receive({ cameraId: OVERRIDE_CAM });
+        });
+    });
+
+    it('sends inst=4 and highQualityVideo=false for quality="low" (happy path)', function (done) {
+        const flow = [
+            { id: 'cfg', type: 'bosch-camera-config' },
+            { id: 'n1', type: 'bosch-camera-stream-url', server: 'cfg',
+              cameraId: FAKE_CAM, connectionType: 'LOCAL', quality: 'low', wires: [['h1']] },
+            { id: 'h1', type: 'helper' }
+        ];
+        const creds = { cfg: { refreshToken: 'rt' } };
+        helper.load([configNode, streamUrlNode], flow, creds, function () {
+            tokenOk();
+            nock(CLOUD_HOST)
+                .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
+                    { type: 'LOCAL', highQualityVideo: false })
+                .reply(200, { rtspUrl: 'rtsp://192.0.2.1:554/live/fake' });
+
+            const h1 = helper.getNode('h1');
+            h1.on('input', function (msg) {
+                try {
+                    assert.strictEqual(msg.payload.rtsp, 'rtsp://192.0.2.1:554/live/fake?inst=4');
+                    assert.strictEqual(msg.payload.quality, 'low');
+                    done();
+                } catch (e) { done(e); }
+            });
+            helper.getNode('n1').receive({ payload: 'go' });
+        });
+    });
+
+    it('accepts a quality override from msg.quality (happy path)', function (done) {
+        const flow = [
+            { id: 'cfg', type: 'bosch-camera-config' },
+            { id: 'n1', type: 'bosch-camera-stream-url', server: 'cfg',
+              cameraId: FAKE_CAM, connectionType: 'LOCAL', quality: 'auto', wires: [['h1']] },
+            { id: 'h1', type: 'helper' }
+        ];
+        const creds = { cfg: { refreshToken: 'rt' } };
+        helper.load([configNode, streamUrlNode], flow, creds, function () {
+            tokenOk();
+            nock(CLOUD_HOST)
+                .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
+                    { type: 'LOCAL', highQualityVideo: true })
+                .reply(200, { rtspUrl: 'rtsp://192.0.2.1:554/live/fake' });
+
+            const h1 = helper.getNode('h1');
+            h1.on('input', function (msg) {
+                try {
+                    assert.strictEqual(msg.payload.rtsp, 'rtsp://192.0.2.1:554/live/fake?inst=1');
+                    assert.strictEqual(msg.payload.quality, 'high');
+                    done();
+                } catch (e) { done(e); }
+            });
+            // msg.quality overrides node config
+            helper.getNode('n1').receive({ quality: 'high' });
         });
     });
 
@@ -164,7 +221,7 @@ describe('bosch-camera-stream-url', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'REMOTE', highQualityVideo: true })
+                    { type: 'REMOTE', highQualityVideo: false })
                 .reply(200, {});  // empty response — no URL fields
 
             const n1 = helper.getNode('n1');

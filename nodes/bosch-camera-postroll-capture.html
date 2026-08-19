@@ -1,5 +1,5 @@
 <script type="text/javascript">
-    RED.nodes.registerType('bosch-camera-nvr-record', {
+    RED.nodes.registerType('bosch-camera-postroll-capture', {
         category: 'Bosch Camera',
         color: '#a6bbcf',
         defaults: {
@@ -9,16 +9,15 @@
             connectionType: { value: 'LOCAL' },  // 'LOCAL' | 'REMOTE'
             quality:        { value: 'auto' },   // 'auto' | 'high' | 'low'
             outputDir:      { value: '', required: true },
-            segmentTime:    { value: 300, validate: RED.validators.number() },
+            seconds:        { value: 10, validate: RED.validators.number() },
             ffmpegPath:     { value: 'ffmpeg' },
-            stopGraceMs:    { value: 5000, validate: RED.validators.number() },
-            autostart:      { value: false }
+            stopGraceMs:    { value: 5000, validate: RED.validators.number() }
         },
         inputs: 1,
         outputs: 1,
         icon: 'camera.svg',
         label: function () {
-            return this.name || 'bosch nvr record';
+            return this.name || 'bosch postroll capture';
         },
         labelStyle: function () {
             return this.name ? 'node_label_italic' : '';
@@ -26,7 +25,7 @@
     });
 </script>
 
-<script type="text/html" data-template-name="bosch-camera-nvr-record">
+<script type="text/html" data-template-name="bosch-camera-postroll-capture">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -56,11 +55,11 @@
     </div>
     <div class="form-row">
         <label for="node-input-outputDir"><i class="fa fa-folder-open"></i> Output dir</label>
-        <input type="text" id="node-input-outputDir" placeholder="/data/nvr/camera1">
+        <input type="text" id="node-input-outputDir" placeholder="/data/nvr/camera1/postroll">
     </div>
     <div class="form-row">
-        <label for="node-input-segmentTime"><i class="fa fa-clock-o"></i> Segment (s)</label>
-        <input type="number" id="node-input-segmentTime" min="10" step="1" placeholder="300">
+        <label for="node-input-seconds"><i class="fa fa-clock-o"></i> Capture (s)</label>
+        <input type="number" id="node-input-seconds" min="1" max="60" step="1" placeholder="10">
     </div>
     <div class="form-row">
         <label for="node-input-ffmpegPath"><i class="fa fa-terminal"></i> ffmpeg path</label>
@@ -70,64 +69,59 @@
         <label for="node-input-stopGraceMs"><i class="fa fa-hourglass-half"></i> Stop grace (ms)</label>
         <input type="number" id="node-input-stopGraceMs" min="50" step="50" placeholder="5000">
     </div>
-    <div class="form-row">
-        <label for="node-input-autostart"><i class="fa fa-play"></i> Autostart</label>
-        <input type="checkbox" id="node-input-autostart" style="display:inline-block; width:auto; vertical-align:top;">
-        <span>start recording on deploy</span>
-    </div>
 </script>
 
-<script type="text/html" data-help-name="bosch-camera-nvr-record">
-    <p>Continuous local NVR recording: opens the camera's local RTSP/RTSPS stream
-    and spawns an <code>ffmpeg</code> subprocess that writes it to disk as
-    fixed-length, non-re-encoded (<code>-c copy</code>) segments.</p>
+<script type="text/html" data-help-name="bosch-camera-postroll-capture">
+    <p>Bounded, one-shot local capture: on an incoming message, opens the camera's
+    local RTSP/RTSPS stream and captures <b>N seconds starting now</b> to a single
+    <code>.mp4</code> file via <code>ffmpeg</code> (<code>-c copy</code>, no re-encode),
+    then emits the file path once the capture has finished.</p>
 
-    <p><b>Continuous mode only.</b> This node does not implement a ring-buffer /
-    pre-roll-postroll "event buffered" mode — that requires state and a
-    long-running supervisor process, which does not fit this repo's stateless
-    message-in/message-out flow-node design. Trigger recording from motion
-    events or a schedule using standard Node-RED flow logic instead.</p>
+    <p><b>Not the sibling HA integration's ring-buffer post-roll.</b> HA's
+    <code>nvr_postroll_seconds</code> derives its post-roll tail from an already-running
+    continuous pre-roll ring recorder (a stateful, long-running supervisor). That design
+    doesn't fit this repo's stateless message-in/message-out flow-node model — this node
+    is a simpler, event-triggered analogue: wire it directly to a motion/person event
+    (e.g. from <b>bosch-camera-event</b>) to get a bounded clip starting at that moment.
+    ffmpeg's codec/argv choices (<code>-c copy</code>, <code>-analyzeduration</code>/
+    <code>-probesize 10M</code>, <code>-movflags +faststart</code>) mirror HA's Mini-NVR
+    pre-roll ring so output files are consistent with what HA produces.</p>
 
     <h3>Inputs</h3>
     <dl class="message-properties">
-        <dt class="optional">payload / topic <span class="property-type">string | boolean</span></dt>
-        <dd><code>'start'</code> (or <code>true</code>/<code>'on'</code>/<code>1</code>, case-insensitive) begins
-        recording; <code>'stop'</code> (or <code>false</code>/<code>'off'</code>/<code>0</code>) stops it.
-        <code>msg.topic</code> is checked first using the same rules — when it yields a recognised
-        command it takes precedence over <code>msg.payload</code>, otherwise <code>msg.payload</code> is used.</dd>
+        <dt>payload <span class="property-type">any</span></dt>
+        <dd>Any message triggers a capture — the payload itself is not inspected.</dd>
         <dt class="optional">cameraId <span class="property-type">string</span></dt>
         <dd>Override the configured Camera ID at runtime.</dd>
         <dt class="optional">connectionType <span class="property-type">string</span></dt>
         <dd>Override the connection type at runtime (<code>'LOCAL'</code> or <code>'REMOTE'</code>).</dd>
+        <dt class="optional">quality <span class="property-type">string</span></dt>
+        <dd>Override the quality preference at runtime (<code>'auto'</code>, <code>'high'</code>, or <code>'low'</code>).</dd>
+        <dt class="optional">seconds <span class="property-type">number</span></dt>
+        <dd>Override the capture duration at runtime (1-60s, clamped).</dd>
     </dl>
 
     <h3>Outputs</h3>
     <dl class="message-properties">
         <dt>payload.cam <span class="property-type">string</span></dt>
-        <dt>payload.recording <span class="property-type">boolean</span></dt>
-        <dt>payload.pid <span class="property-type">number | null</span></dt>
-        <dd>ffmpeg process id while recording, <code>null</code> once stopped.</dd>
-        <dt>payload.outputDir <span class="property-type">string</span></dt>
+        <dt>payload.file <span class="property-type">string</span></dt>
+        <dd>Absolute path to the captured <code>.mp4</code> file.</dd>
+        <dt>payload.seconds <span class="property-type">number</span></dt>
+        <dt>payload.connectionType <span class="property-type">string</span></dt>
+        <dt>payload.quality <span class="property-type">string</span></dt>
     </dl>
 
     <h3>Details</h3>
-    <p><b>Quality</b> selects the recorded stream tier (<code>auto</code>/<code>high</code>/<code>low</code>,
-    matching Bosch's <code>highQualityVideo</code> + <code>inst=</code> parameters — see the
-    <b>bosch-camera-stream-url</b> node's help for the exact mapping).</p>
+    <p>Only one capture runs per node instance at a time — a new trigger message while
+    a capture is still running errors immediately instead of queueing or overlapping.</p>
     <p>Requires an <code>ffmpeg</code> binary reachable at <b>ffmpeg path</b> (default: on
     <code>PATH</code>). The output directory must exist and be writable by the Node-RED
     process — this node does not create it.</p>
-    <p>Segments are named <code>%Y%m%d-%H%M%S.mp4</code> inside <b>Output dir</b>. A new file
-    starts every <b>Segment (s)</b> seconds (min 10 s).</p>
-    <p>A <code>'stop'</code> message or the node being undeployed/redeployed sends
-    <code>SIGTERM</code> to ffmpeg, escalating to <code>SIGKILL</code> after
-    <b>Stop grace (ms)</b> if it hasn't exited by itself. Undeploying/redeploying
-    always waits for ffmpeg to actually exit before Node-RED considers the node
-    stopped (bounded by <b>Stop grace (ms)</b> plus a short fixed safety margin) —
-    even if a start was still opening the connection (aborted before ffmpeg ever
-    launches) or a stop was already in progress when the redeploy happened.</p>
-    <p>With <b>Autostart</b> enabled, recording begins automatically once the flow
-    is deployed — no 'start' message needed.</p>
+    <p>Output files are named <code>postroll-&lt;cameraId&gt;-&lt;ISO-timestamp&gt;.mp4</code>
+    inside <b>Output dir</b>.</p>
+    <p>The node undeploying/redeploying mid-capture sends <code>SIGTERM</code>, escalating
+    to <code>SIGKILL</code> after <b>Stop grace (ms)</b>, and always waits for ffmpeg to
+    actually exit before Node-RED considers the node stopped.</p>
     <p>Stream URLs may embed Digest credentials in the userinfo component
     (<code>rtsp://user:pass@host/...</code>). The node <em>never</em> logs the raw URL —
     only a redacted form (<code>***:***@</code>) appears in node status and the log.</p>

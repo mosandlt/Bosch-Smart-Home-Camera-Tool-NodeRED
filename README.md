@@ -150,9 +150,15 @@ Output `msg.payload`:
 }
 ```
 `msg.cam` carries the camera ID. Connection type defaults to `REMOTE` (cloud
-TLS proxy); set to `LOCAL` for LAN. Camera ID and connection type can be
-overridden at runtime via `msg.cameraId` / `msg.connectionType`. Digest
-credentials embedded in RTSP URLs are redacted in node status and logs (`***:***@`).
+TLS proxy); set to `LOCAL` for LAN. **Quality** defaults to `auto` — `auto`/
+`high`/`low`, matching the sibling HA integration's `quality_prefs.get_quality_params`
+mapping exactly: `high` → `highQualityVideo=true, inst=1` (primary encoder,
+~30 Mbps), `low` → `highQualityVideo=false, inst=4` (~1.9 Mbps, LOCAL only —
+the REMOTE proxy rejects `inst=4`), `auto` → `highQualityVideo=false, inst=2`
+(balanced, ~7.5 Mbps, iOS-app default). Camera ID, connection type and quality
+can all be overridden at runtime via `msg.cameraId` / `msg.connectionType` /
+`msg.quality`. Digest credentials embedded in RTSP URLs are redacted in node
+status and logs (`***:***@`).
 
 ### bosch-camera-light (action/query node)
 
@@ -194,13 +200,75 @@ Output: `msg.payload = { cam, detectGlassBreak, detectFireAlarm, success }`
 
 Spawns/manages an `ffmpeg` subprocess that pulls a camera's local
 RTSP/RTSPS stream and writes it to disk as fixed-length segments
-(`-f segment -c copy`). Continuous mode only.
+(`-f segment -c copy`). Continuous mode only. Same `quality`
+(`auto`/`high`/`low`) option as `bosch-camera-stream-url`.
 
 Input: `msg.payload`/`msg.topic` = `start`/`stop`/`on`/`off`/`1`/`0`
 (case-insensitive), or configure autostart-on-deploy in the editor.
 
 Output: status/lifecycle messages as the node transitions
 idle → starting → recording → stopping.
+
+### bosch-camera-postroll-capture (action node)
+
+Bounded, one-shot local capture: on an incoming message, opens the camera's
+local RTSP/RTSPS stream and captures **N seconds starting now** to a single
+`.mp4` file via `ffmpeg` (`-c copy`, no re-encode), then emits the file path
+once the capture has finished. Wire it to a motion/person event (e.g. from
+`bosch-camera-event`) for an event-triggered bounded clip.
+
+Not the sibling HA integration's `nvr_postroll_seconds` ring-buffer design —
+HA derives its post-roll tail from an already-running continuous pre-roll
+recorder (a stateful, long-running supervisor), which doesn't fit this
+repo's stateless flow-node model. This node is a simpler, event-triggered
+analogue with the same ffmpeg codec/argv choices (`-c copy`,
+`-analyzeduration`/`-probesize 10M`, `-movflags +faststart`) as HA's
+Mini-NVR pre-roll ring, so output files are consistent with what HA produces.
+
+Input: any message triggers a capture (payload not inspected); `msg.seconds`
+overrides the configured duration (1-60s, clamped) at runtime. Only one
+capture runs per node instance — a trigger while a capture is in progress
+errors instead of queueing.
+
+Output: `msg.payload = { cam, file, seconds, connectionType, quality }`
+
+### bosch-camera-ai-analysis (action node)
+
+On an incoming message, fetches one or more live snapshots and emits them
+together with a ready-to-use analysis prompt and structured-output schema —
+mirroring the sibling HA integration's `analyze_camera_ai` service (1-10
+suspicion score + fields).
+
+**Design choice: this node does not call any AI/LLM provider.** HA's own
+`analyze_camera_ai` service doesn't embed an LLM client either — it
+delegates entirely to HA's separately-configured `ai_task` integration.
+Node-RED has no equivalent built-in AI-provider abstraction, and embedding a
+bespoke HTTP client + API-key/endpoint config here would mean re-inventing a
+small, brittle subset of what dedicated nodes already do well (an `openai`
+node, a generic `http request` node, any vision-capable community LLM node)
+— composing small, swappable, independently-testable nodes is Node-RED's own
+philosophy, and matches how `bosch-camera-nvr-record` already scopes
+stateful/provider-specific concerns out of this repo. Wire this node's
+output into whichever AI/vision node you have installed.
+
+Input: `msg.cameraId` / `msg.snapshotCount` (1-10) / `msg.instructions`
+override the node config at runtime.
+
+Output `msg.payload`:
+```json
+{
+  "cam": "your-video-input-id",
+  "timestamp": "2026-08-19T12:34:56.000Z",
+  "snapshotCount": 3,
+  "images": ["<Buffer>", "..."],
+  "instructions": "You are a security-camera analysis assistant. ...",
+  "structure": { "score": { "description": "...", "required": true, "selector": { "number": { "min": 1, "max": 10 } } }, "...": "..." }
+}
+```
+`msg.attachments = [{ data: Buffer, contentType: 'image/jpeg' }, ...]` is also
+set as a convenience alias for LLM/vision nodes that expect that shape.
+Snapshots are fetched sequentially (not in parallel) to avoid concurrent
+live-connection pressure against the same camera.
 
 ### bosch-camera-firmware-status (query node)
 
@@ -277,7 +345,7 @@ How this tool compares to the rest of the Bosch Smart Home Camera ecosystem (Hom
 | **Platform** | Home Assistant (HACS) | Standalone Python 3.10+ CLI | ioBroker (npm) | Python 3.10+ · pipx / uvx · stdio + streamable-HTTP for MCP clients (Claude Desktop, Claude Code, custom) | NiceGUI web app · Python 3.10+ | Node-RED palette · npm |
 | **Login** | OAuth2 PKCE (browser) | OAuth2 PKCE (browser) | OAuth2 PKCE (browser) | ◑ shares CLI `bosch_config.json` | ◑ shares CLI `bosch_config.json` | ◑ refresh-token from CLI |
 | **Snapshots** | ✅ Native `Camera.image` | ✅ `snapshot` command | ✅ File-store + base64 DP | ✅ `bosch_camera_snapshot` (LAN-only) | ✅ live + event fallback | ✅ `snapshot` node |
-| **Live RTSP stream (LAN)** | ✅ via HA Stream component | ✅ ffmpeg/RTSPS output | ✅ TLS proxy → local RTSP | ✅ `bosch_camera_stream_url` (LAN-only, no cloud relay) | ◑ internal (go2rtc) | ◑ `stream-url` node (URL only) |
+| **Live RTSP stream (LAN)** | ✅ via HA Stream component | ✅ ffmpeg/RTSPS output | ✅ TLS proxy → local RTSP | ✅ `bosch_camera_stream_url` (LAN-only, no cloud relay) | ◑ internal (go2rtc) | ◑ `stream-url` node (URL only, `quality` auto/high/low) |
 | **WebRTC (sub-second latency)** | ✅ via integrated go2rtc | ✅ *(v10.6.0)* `live --webrtc` | ❌ | ❌ | ✅ via go2rtc (else snapshot) | ❌ |
 | **Dual-stream URL (main + sub)** | ✅ `sensor.bosch_<n>_stream_url` + `_sub` *(v12.4.0, opt-in per cam)* | ✅ `info` shows both · `live --sub` *(v10.5.0)* | ✅ `stream_url` + `stream_url_sub` *(v0.5.3 experimental)* | ◑ `bosch_camera_stream_url` — main stream only | ❌ *(sub-stream only)* | ◑ URL only — no sub option |
 | **External recorder (BlueIris, Frigate)** | ✅ via go2rtc | ✅ stdout pipe | ✅ Digest-creds URL + LAN bind option | ✅ URL returned, hand off to ffmpeg / go2rtc downstream | ❌ | ◑ `stream-url` → wire downstream |
@@ -295,7 +363,7 @@ How this tool compares to the rest of the Bosch Smart Home Camera ecosystem (Hom
 | **Automation rules / schedules** | ✅ read + write | ✅ read + write | ✅ full CRUD *(v1.8.0)* | ✅ list / add / edit / delete *(v1.7.0)* | ✅ full CRUD (list/add/edit/delete) | ❌ |
 | **Lighting schedule** | ✅ read (write via service, Gen1 Eyes Outdoor only) | ✅ read + write | ✅ read *(Gen1-only, v1.2.0)* | ✅ get / set *(v1.7.0)* | ✅ read + write *(outdoor Eyes cameras)* | ❌ |
 | **Cloud clip download (history ~30 d)** | ✅ via Media Browser | ❌ | ❌ *(parked — no community request yet)* | ❌ *(intentionally not exposed — large payloads)* | ❌ *(use CLI)* | ◑ `clip_url` in event payload |
-| **Mini-NVR (local recording)** | ✅ continuous + event-buffered, ring-buffer preroll *(v11.2.0 BETA → v14.7.0 modes)* | ◑ event-triggered segment muxing, no preroll ring *(v10.7.0 BETA)* | ❌ *(delegates to external recorder via credential-free RTSP endpoint)* | ❌ *(no NVR concept)* | ◑ continuous only, no event-buffered *(v0.4.0-alpha)* | ◑ continuous only via `bosch-camera-nvr-record` node *(v0.4.0-alpha)* |
+| **Mini-NVR (local recording)** | ✅ continuous + event-buffered, ring-buffer preroll *(v11.2.0 BETA → v14.7.0 modes)* | ◑ event-triggered segment muxing, no preroll ring *(v10.7.0 BETA)* | ❌ *(delegates to external recorder via credential-free RTSP endpoint)* | ❌ *(no NVR concept)* | ◑ continuous only, no event-buffered *(v0.4.0-alpha)* | ◑ continuous via `bosch-camera-nvr-record`, bounded one-shot post-roll via `bosch-camera-postroll-capture` — no ring-buffer/pre-roll |
 | **SMB / NAS clip upload** | ✅ | ✅ *(v10.7.0 BETA)* | ❌ | ❌ | ❌ | ❌ |
 | **Camera sharing (friends)** | ✅ services (share / invite / list) | ✅ command | ✅ share / invite / remove *(Gen2 only, v1.8.0)* | ✅ list / invite / share / unshare / remove *(v1.7.0)* | ✅ list/invite/remove/share/unshare | ❌ |
 | **Pan / tilt (360° Gen1)** | ✅ services | ✅ command | ✅ `pan_position` DP | ✅ `bosch_camera_pan` | ✅ slider wired to live API | ❌ |

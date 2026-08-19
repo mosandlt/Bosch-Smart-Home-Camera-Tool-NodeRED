@@ -1,6 +1,42 @@
 # Changelog
 
-## Unreleased
+## [0.4.3-alpha] - 2026-08-19
+
+Family-parity batch: ports 3 HA-integration capabilities that fit this
+repo's stateless request/response node model (per a ground-truth gap audit
+against HA v16.1.12 — everything requiring persistent state/sessions was
+correctly excluded by that audit and is not part of this batch).
+
+- **New node `bosch-camera-ai-analysis`**: fetches one or more live
+  snapshots for a camera and emits them with a ready-to-use suspicion-scoring
+  prompt + structured-output schema, mirroring HA's `analyze_camera_ai`
+  service. Deliberately does **not** call any AI/LLM provider itself — HA's
+  own service doesn't embed one either (it delegates to HA's separately
+  configured `ai_task` integration); this node stops at fetching the
+  snapshots and hands them to the flow for wiring into whichever AI/vision
+  node the user has installed (`msg.attachments`, plus `msg.payload.images`/
+  `.instructions`/`.structure`), matching Node-RED's own composability
+  philosophy over embedding a bespoke HTTP client + API-key config.
+- **New node `bosch-camera-postroll-capture`**: bounded, one-shot "record N
+  seconds starting now" local capture via `ffmpeg -t <seconds> -c copy`,
+  triggered by an incoming message (e.g. wired to `bosch-camera-event`).
+  Not HA's `nvr_postroll_seconds` ring-buffer design (that derives its tail
+  from an already-running stateful pre-roll recorder) — a simpler
+  event-triggered analogue, with the same ffmpeg codec/argv choices as HA's
+  Mini-NVR pre-roll ring so output files are consistent.
+- **Fix: stream quality selection.** `bosch-api.js`'s `getStreamUrl` sent
+  only `highQualityVideo: true` unconditionally and never the `inst=`
+  parameter Bosch's API also uses for quality tiering — the sibling HA
+  integration's v16.1.2 fix confirmed `highQualityVideo` alone is not
+  sufficient to actually change the stream tier. New `quality` option
+  (`auto`/`high`/`low`, default `auto`) on `bosch-camera-stream-url` and
+  `bosch-camera-nvr-record`, mapped exactly like HA's
+  `quality_prefs.get_quality_params`: `high` → `highQualityVideo=true,
+  inst=1`; `low` → `highQualityVideo=false, inst=4` (LOCAL only); `auto` →
+  `highQualityVideo=false, inst=2`. **Behaviour change**: the previous
+  hardcoded `highQualityVideo: true` (no `inst`) is replaced by the `auto`
+  default — set `quality: high` to keep the old always-high-quality
+  behaviour.
 
 ## [0.4.2-alpha] - 2026-07-16
 

@@ -16,6 +16,7 @@ module.exports = function (RED) {
         node.server = RED.nodes.getNode(config.server);
         node.cameraId = config.cameraId;
         node.connectionType = config.connectionType || 'REMOTE'; // 'REMOTE' | 'LOCAL'
+        node.quality = config.quality || 'auto'; // 'auto' | 'high' | 'low'
 
         if (!node.server) {
             node.status({ fill: 'red', shape: 'ring', text: 'no config' });
@@ -39,11 +40,13 @@ module.exports = function (RED) {
 
             // Connection type: msg wins, then node config, then default REMOTE.
             const connType = msg.connectionType || node.connectionType || 'REMOTE';
+            // Quality: msg wins, then node config, then default 'auto'.
+            const quality = msg.quality || node.quality || 'auto';
 
             node.status({ fill: 'blue', shape: 'dot', text: 'opening...' });
 
             node.server.getAccessToken()
-                .then(function (token) { return api.getStreamUrl(token, camId, connType); })
+                .then(function (token) { return api.getStreamUrl(token, camId, connType, quality); })
                 .then(function (result) {
                     // Log only the redacted forms — never raw URLs with credentials.
                     const logUrl = api.redactStreamUrl(result.rtsps || result.rtsp || result.hls);
@@ -55,6 +58,7 @@ module.exports = function (RED) {
                             rtsps: result.rtsps,
                             hls: result.hls,
                             connectionType: connType,
+                            quality: quality,
                             cam: camId,
                             timestamp: new Date().toISOString()
                         }

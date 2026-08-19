@@ -21,7 +21,7 @@ function tokenOk() {
 function connectionOk(rtsps) {
     nock(CLOUD_HOST)
         .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-            { type: 'LOCAL', highQualityVideo: true })
+            { type: 'LOCAL', highQualityVideo: false })
         .reply(200, { rtspUrl: 'rtsp://u:p@192.0.2.1:554/live/fake', rtspsUrl: rtsps });
 }
 
@@ -70,7 +70,8 @@ describe('bosch-camera-nvr-record', function () {
                     assert.strictEqual(msg.payload.outputDir, '/data/nvr/fake');
 
                     assert.strictEqual(spawnArgs.cmd, 'ffmpeg');
-                    assert.ok(spawnArgs.args.includes('rtsps://u:p@192.0.2.1:322/live/fake'));
+                    // Default quality 'auto' appends '?inst=2' (getQualityParams).
+                    assert.ok(spawnArgs.args.includes('rtsps://u:p@192.0.2.1:322/live/fake?inst=2'));
                     assert.ok(spawnArgs.args.includes('-segment_time'));
                     assert.strictEqual(spawnArgs.args[spawnArgs.args.indexOf('-segment_time') + 1], '60');
                     assert.ok(spawnArgs.args.includes('-c'));
@@ -102,7 +103,8 @@ describe('bosch-camera-nvr-record', function () {
             helper.getNode('h1').on('input', function (msg) {
                 try {
                     assert.strictEqual(msg.payload.recording, true);
-                    assert.ok(spawnArgs.includes('rtsp://u:p@192.0.2.1:554/live/fake'));
+                    // Default quality 'auto' appends '?inst=2' (getQualityParams).
+                    assert.ok(spawnArgs.includes('rtsp://u:p@192.0.2.1:554/live/fake?inst=2'));
                     done();
                 } catch (e) { done(e); }
             });
@@ -387,7 +389,7 @@ describe('bosch-camera-nvr-record', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'LOCAL', highQualityVideo: true })
+                    { type: 'LOCAL', highQualityVideo: false })
                 .reply(200, {});
 
             const n1 = helper.getNode('n1');
@@ -469,7 +471,7 @@ describe('bosch-camera-nvr-record', function () {
             tokenOk();
             nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'LOCAL', highQualityVideo: true })
+                    { type: 'LOCAL', highQualityVideo: false })
                 .reply(200, { hlsUrl: 'https://proxy.example.com/hls/fake.m3u8' });
 
             const n1 = helper.getNode('n1');
@@ -823,7 +825,7 @@ describe('bosch-camera-nvr-record', function () {
             const tokenScope = nock(TOKEN_HOST).post(TOKEN_PATH).reply(200, { access_token: 'AT', expires_in: 3600 });
             const connScope = nock(CLOUD_HOST)
                 .put('/v11/video_inputs/' + encodeURIComponent(FAKE_CAM) + '/connection',
-                    { type: 'LOCAL', highQualityVideo: true })
+                    { type: 'LOCAL', highQualityVideo: false })
                 .reply(200, { rtspsUrl: 'rtsps://u:p@192.0.2.1:322/live/fake' });
 
             const n1 = helper.getNode('n1');

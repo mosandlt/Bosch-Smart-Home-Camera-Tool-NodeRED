@@ -68,6 +68,7 @@ module.exports = function (RED) {
         node.server = RED.nodes.getNode(config.server);
         node.cameraId = config.cameraId;
         node.connectionType = config.connectionType || 'LOCAL'; // 'LOCAL' | 'REMOTE'
+        node.quality = config.quality || 'auto'; // 'auto' | 'high' | 'low'
         node.outputDir = config.outputDir;
         node.ffmpegPath = config.ffmpegPath || 'ffmpeg';
         node.autostart = !!config.autostart;
@@ -166,13 +167,14 @@ module.exports = function (RED) {
             }
 
             const connType = msg.connectionType || node.connectionType || 'LOCAL';
+            const quality = msg.quality || node.quality || 'auto';
 
             state = 'starting';
             cancelRequested = false;
             node.status({ fill: 'blue', shape: 'dot', text: 'opening stream...' });
 
             node.server.getAccessToken()
-                .then(function (token) { return api.getStreamUrl(token, camId, connType); })
+                .then(function (token) { return api.getStreamUrl(token, camId, connType, quality); })
                 .then(function (result) {
                     const streamUrl = result.rtsps || result.rtsp;
                     if (!streamUrl) {

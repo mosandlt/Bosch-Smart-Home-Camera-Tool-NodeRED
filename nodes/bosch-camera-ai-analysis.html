@@ -1,0 +1,105 @@
+<script type="text/javascript">
+    RED.nodes.registerType('bosch-camera-ai-analysis', {
+        category: 'Bosch Camera',
+        color: '#a6bbcf',
+        defaults: {
+            name:           { value: '' },
+            server:         { value: '', type: 'bosch-camera-config', required: true },
+            cameraId:       { value: '', required: false },
+            snapshotCount:  { value: 3, validate: RED.validators.number() },
+            promptOverride: { value: '' }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: 'camera.svg',
+        label: function () {
+            return this.name || 'bosch ai analysis';
+        },
+        labelStyle: function () {
+            return this.name ? 'node_label_italic' : '';
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="bosch-camera-ai-analysis">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-server"></i> Bosch Cloud</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cameraId"><i class="fa fa-video-camera"></i> Camera ID</label>
+        <input type="text" id="node-input-cameraId" placeholder="video input ID (leave blank = msg.cameraId)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-snapshotCount"><i class="fa fa-picture-o"></i> Snapshots</label>
+        <input type="number" id="node-input-snapshotCount" min="1" max="10" step="1" placeholder="3">
+    </div>
+    <div class="form-row">
+        <label for="node-input-promptOverride" style="vertical-align: top;"><i class="fa fa-comment"></i> Prompt</label>
+        <textarea id="node-input-promptOverride" rows="4" style="width: 70%;"
+            placeholder="Leave blank to use the built-in default suspicion-scoring prompt"></textarea>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="bosch-camera-ai-analysis">
+    <p>On an incoming message, fetches one or more live snapshots for a camera and
+    emits them together with a ready-to-use analysis prompt and structured-output
+    schema — mirroring the sibling HA integration's <code>analyze_camera_ai</code>
+    service (1-10 suspicion score + fields).</p>
+
+    <p><b>This node does not call any AI/LLM provider.</b> HA's own
+    <code>analyze_camera_ai</code> service doesn't embed an LLM client either — it
+    delegates entirely to HA's separately-configured <code>ai_task</code> integration.
+    Node-RED has no equivalent built-in AI-provider abstraction, and embedding a
+    bespoke HTTP client + API-key/endpoint config here would mean re-inventing a
+    small, brittle subset of what dedicated nodes (an <code>openai</code> node, a
+    generic <b>http request</b> node, any vision-capable community LLM node)
+    already do well — and are independently testable and swappable. Wire this
+    node's output into whichever AI/vision node you have installed:</p>
+    <ul>
+        <li><code>msg.payload.images</code> — array of JPEG <code>Buffer</code>s (also
+        available as <code>msg.attachments</code>, <code>[{data, contentType}, ...]</code>,
+        for nodes that expect that shape)</li>
+        <li><code>msg.payload.instructions</code> — a ready-to-use analysis prompt
+        (override via config or <code>msg.instructions</code>)</li>
+        <li><code>msg.payload.structure</code> — the structured-output field schema
+        (score/short/detail/direction/carrying/activity), matching HA's own
+        <code>ai_task.generate_data</code> <code>structure</code> parameter shape, for
+        AI nodes that support constrained/structured responses</li>
+    </ul>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">cameraId <span class="property-type">string</span></dt>
+        <dd>Override the configured Camera ID at runtime.</dd>
+        <dt class="optional">snapshotCount <span class="property-type">number</span></dt>
+        <dd>Override the number of snapshots to fetch at runtime (1-10, clamped).</dd>
+        <dt class="optional">instructions <span class="property-type">string</span></dt>
+        <dd>Override the analysis prompt at runtime.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload.cam <span class="property-type">string</span></dt>
+        <dt>payload.timestamp <span class="property-type">string</span></dt>
+        <dt>payload.snapshotCount <span class="property-type">number</span></dt>
+        <dt>payload.images <span class="property-type">Buffer[]</span></dt>
+        <dd>JPEG snapshots, fetched sequentially (oldest first).</dd>
+        <dt>payload.instructions <span class="property-type">string</span></dt>
+        <dt>payload.structure <span class="property-type">object</span></dt>
+        <dt>attachments <span class="property-type">object[]</span></dt>
+        <dd>Convenience alias: <code>[{ data: Buffer, contentType: 'image/jpeg' }, ...]</code></dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>Snapshots are fetched <b>sequentially</b>, not in parallel — a burst of
+    concurrent live-connection requests against the same camera is exactly the
+    kind of session pressure the sibling HA integration's GitHub #64 fix exists
+    to avoid, and sequential fetches naturally space the frames out in time,
+    which is more useful for motion analysis than several near-identical
+    simultaneous captures.</p>
+</script>

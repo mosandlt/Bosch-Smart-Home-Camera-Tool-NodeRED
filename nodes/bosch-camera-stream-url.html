@@ -6,7 +6,8 @@
             name:           { value: '' },
             server:         { value: '', type: 'bosch-camera-config', required: true },
             cameraId:       { value: '', required: false },
-            connectionType: { value: 'REMOTE' }  // 'REMOTE' | 'LOCAL'
+            connectionType: { value: 'REMOTE' },  // 'REMOTE' | 'LOCAL'
+            quality:        { value: 'auto' }     // 'auto' | 'high' | 'low'
         },
         inputs: 1,
         outputs: 1,
@@ -40,6 +41,14 @@
             <option value="LOCAL">LOCAL (LAN — same network as SHC only)</option>
         </select>
     </div>
+    <div class="form-row">
+        <label for="node-input-quality"><i class="fa fa-sliders"></i> Quality</label>
+        <select id="node-input-quality">
+            <option value="auto">Auto (balanced, ~7.5 Mbps)</option>
+            <option value="high">High (primary encoder, ~30 Mbps)</option>
+            <option value="low">Low (~1.9 Mbps, LOCAL only)</option>
+        </select>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="bosch-camera-stream-url">
@@ -53,6 +62,9 @@
         <dt class="optional">connectionType <span class="property-type">string</span></dt>
         <dd>Override the connection type at runtime via <code>msg.connectionType</code>
         (<code>'REMOTE'</code> or <code>'LOCAL'</code>).</dd>
+        <dt class="optional">quality <span class="property-type">string</span></dt>
+        <dd>Override the quality preference at runtime via <code>msg.quality</code>
+        (<code>'auto'</code>, <code>'high'</code>, or <code>'low'</code>).</dd>
     </dl>
 
     <h3>Outputs</h3>
@@ -65,6 +77,8 @@
         <dd>HLS playlist URL if the camera supports it, otherwise <code>null</code>.</dd>
         <dt>payload.connectionType <span class="property-type">string</span></dt>
         <dd>The connection type used (<code>'REMOTE'</code> or <code>'LOCAL'</code>).</dd>
+        <dt>payload.quality <span class="property-type">string</span></dt>
+        <dd>The quality preference used (<code>'auto'</code>, <code>'high'</code>, or <code>'low'</code>).</dd>
         <dt>payload.cam <span class="property-type">string</span></dt>
         <dd>Camera device ID.</dd>
         <dt>payload.timestamp <span class="property-type">string</span></dt>
@@ -73,7 +87,14 @@
 
     <h3>Details</h3>
     <p>Calls <code>PUT /v11/video_inputs/{id}/connection</code> on the Bosch cloud API to
-    open a live stream session. The node passes <code>highQualityVideo: true</code>.</p>
+    open a live stream session. <b>Quality</b> maps to Bosch's <code>highQualityVideo</code>
+    (connection body) and <code>inst=</code> (stream URL query param) parameters together
+    — matching the sibling HA integration's fix confirmed in v16.1.2, where sending
+    <code>highQualityVideo</code> alone was not sufficient to actually change the stream
+    tier: <code>high</code> → <code>highQualityVideo=true, inst=1</code> (primary encoder),
+    <code>low</code> → <code>highQualityVideo=false, inst=4</code> (LOCAL only — the REMOTE
+    proxy rejects <code>inst=4</code>), <code>auto</code> (default) →
+    <code>highQualityVideo=false, inst=2</code> (balanced, iOS-app default).</p>
     <p><b>REMOTE</b> routes the stream through the Bosch cloud RTSP proxy — it works from
     any network. <b>LOCAL</b> returns a direct LAN address (only reachable when on the
     same network as the Smart Home Controller).</p>

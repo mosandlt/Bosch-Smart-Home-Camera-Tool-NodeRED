@@ -264,9 +264,37 @@ async function setPrivacy(token, cameraId, mode, durationInSeconds = null) {
     );
 }
 
+// Maps a 'auto' | 'high' | 'low' quality preference to the two parameters
+// Bosch's API uses for stream-quality tiering, mirroring the sibling HA
+// integration's `quality_prefs.get_quality_params` exactly:
+//   high -> highQualityVideo=true,  inst=1 (primary encoder, ~30 Mbps)
+//   low  -> highQualityVideo=false, inst=4 (low-bandwidth, ~1.9 Mbps, LOCAL only)
+//   auto -> highQualityVideo=false, inst=2 (balanced, ~7.5 Mbps — iOS default)
+// Any unrecognised value falls back to 'auto'.
+function getQualityParams(quality) {
+    if (quality === 'high') { return { highQualityVideo: true, inst: 1 }; }
+    if (quality === 'low') { return { highQualityVideo: false, inst: 4 }; }
+    return { highQualityVideo: false, inst: 2 };
+}
+
+// Sets/replaces the `inst=` query parameter on a stream URL. Bosch's
+// connection response already carries a default `inst=` (or none at all);
+// this makes the URL agree with the `highQualityVideo` flag sent in the
+// same request — sending only `highQualityVideo` (the pre-existing bug)
+// left the actual stream tier essentially unset. No-op on a non-string/empty url.
+function applyInst(url, inst) {
+    if (typeof url !== 'string' || !url) { return url; }
+    if (/inst=\d+/.test(url)) {
+        return url.replace(/inst=\d+/, `inst=${inst}`);
+    }
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}inst=${inst}`;
+}
+
 // Open a live stream connection and return stream URLs for the camera.
 // `connectionType` is 'REMOTE' (default, cloud proxy RTSP/RTSPS) or 'LOCAL'
 // (LAN — only reachable on the same network as the SHC, no TLS pinning needed).
+// `quality` is 'auto' (default), 'high', or 'low' — see getQualityParams().
 // Resolves to:
 //   { rtsp: string|null, rtsps: string|null, hls: string|null, raw: object }
 // where `raw` is the full connection response from the Bosch API.
@@ -274,10 +302,11 @@ async function setPrivacy(token, cameraId, mode, durationInSeconds = null) {
 // SECURITY: callers MUST NOT log the returned URLs directly — they may embed
 // Digest credentials in the userinfo component (rtsp://user:pass@host/...).
 // Use redactStreamUrl() before any logging.
-async function getStreamUrl(token, cameraId, connectionType = 'REMOTE') {
+async function getStreamUrl(token, cameraId, connectionType = 'REMOTE', quality = 'auto') {
+    const { highQualityVideo, inst } = getQualityParams(quality);
     const res = await axios.put(
         `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/connection`,
-        { type: connectionType, highQualityVideo: true },
+        { type: connectionType, highQualityVideo },
         {
             headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
             httpsAgent: boschCloudAgent,
@@ -292,8 +321,9 @@ async function getStreamUrl(token, cameraId, connectionType = 'REMOTE') {
     //   data.rtspsUrl  — TLS variant (rtsps://)
     //   data.hlsUrl    — HLS playlist URL (https://...)
     // For LOCAL connections the URL is a direct LAN address (no cloud proxy).
-    const rtsp = data.rtspUrl || null;
-    const rtsps = data.rtspsUrl || null;
+    // `inst=` is applied to the rtsp(s) URLs only — HLS quality is server-side.
+    const rtsp = applyInst(data.rtspUrl || null, inst);
+    const rtsps = applyInst(data.rtspsUrl || null, inst);
     const hls = data.hlsUrl || null;
 
     if (!rtsp && !rtsps && !hls) {
@@ -471,6 +501,7 @@ module.exports = {
     getPrivacy,
     setPrivacy,
     getStreamUrl,
+    getQualityParams,
     redactStreamUrl,
     verifyCloudPeerCert,
     getLight,
