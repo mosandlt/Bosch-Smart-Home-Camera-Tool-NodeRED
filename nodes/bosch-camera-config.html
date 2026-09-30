@@ -25,7 +25,8 @@
             name: { value: '', required: false }
         },
         credentials: {
-            refreshToken: { type: 'password' }
+            refreshToken: { type: 'password' },
+            localPasswords: { type: 'password' }
         },
         label: function () {
             return this.name || 'Bosch Cloud';
@@ -42,6 +43,10 @@
         <label for="node-config-input-refreshToken"><i class="fa fa-key"></i> Refresh Token</label>
         <input type="password" id="node-config-input-refreshToken" placeholder="Bosch SingleKey ID refresh token">
     </div>
+    <div class="form-row">
+        <label for="node-config-input-localPasswords"><i class="fa fa-lock"></i> Local passwords</label>
+        <input type="password" id="node-config-input-localPasswords" placeholder='optional: {"<camera id>":"<sticker password>"}'>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="bosch-camera-config">
@@ -55,4 +60,11 @@
     (PKCE), then copy the <code>refresh_token</code> it saves to its local config
     file into the field above. The refresh token does not expire, so this is a
     one-time step.</p>
+    <h3>Local passwords (optional)</h3>
+    <p>JSON object mapping a camera ID to the password printed on that camera's
+    sticker, e.g. <code>{"&lt;camera id&gt;":"&lt;password&gt;"}</code>. When a
+    camera's local data interface is active and a password is set, the
+    <b>stream url</b> node returns a local stream URL and never opens a cloud
+    stream session for that camera. Stored like the refresh token and never
+    logged.</p>
 </script>

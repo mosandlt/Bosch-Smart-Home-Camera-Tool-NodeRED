@@ -8,6 +8,7 @@ const axios = require('axios');
 const https = require('https');
 const tls = require('tls');
 const crypto = require('crypto');
+const net = require('net');
 
 const KEYCLOAK_TOKEN_URL =
     'https://smarthome.authz.bosch.com/auth/realms/home_auth_provider/protocol/openid-connect/token';
@@ -486,6 +487,91 @@ async function installFirmware(token, cameraId, targetVersion) {
     );
 }
 
+// --- local data interface ---------------------------------------------------
+const LDI_ENDPOINT = 'onvif_user';
+const LDI_MIN_FIRMWARE = [9, 40, 105];
+const LDI_USER = 'localuser';
+const LDI_PORT = 9554;
+const LDI_STATE_ACTIVE = 'active';
+const LDI_STATE_INACTIVE = 'inactive';
+const LDI_STATE_UNSUPPORTED = 'unsupported';
+
+// Dotted numeric firmware string -> number tuple; null for anything else.
+// The length cap keeps absurdly long digit runs from becoming huge numbers.
+function parseFirmware(version) {
+    if (typeof version !== 'string') { return null; }
+    const parts = version.trim().split('.');
+    if (!parts.every(function (p) { return /^[0-9]{1,9}$/.test(p); })) { return null; }
+    return parts.map(Number);
+}
+
+function firmwareSupportsLdi(version) {
+    const parsed = parseFirmware(version);
+    if (!parsed) { return false; }
+    for (let i = 0; i < Math.max(parsed.length, LDI_MIN_FIRMWARE.length); i++) {
+        const a = parsed[i] || 0;
+        const b = LDI_MIN_FIRMWARE[i] || 0;
+        if (a !== b) { return a > b; }
+    }
+    return true;
+}
+
+// HTTP result -> { state, username? }, or null to keep the last known value.
+function ldiStateFromResponse(status, body) {
+    if (status === 200) {
+        if (body && typeof body === 'object' && typeof body.username === 'string') {
+            return { state: LDI_STATE_ACTIVE, username: body.username };
+        }
+        return null;
+    }
+    if (status === 404) { return { state: LDI_STATE_INACTIVE }; }
+    if (status === 449) { return { state: LDI_STATE_UNSUPPORTED }; }
+    return null;
+}
+
+// Read-only status of the camera's local data interface. Resolves to a state
+// object, or null when the result is unusable (other status, network error).
+async function getLocalDataInterface(token, cameraId) {
+    try {
+        const res = await axios.get(
+            `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/${LDI_ENDPOINT}`,
+            {
+                headers: authHeaders(token),
+                httpsAgent: boschCloudAgent,
+                timeout: TIMEOUT,
+                validateStatus: function () { return true; }
+            }
+        );
+        return ldiStateFromResponse(res.status, res.data);
+    } catch {
+        return null;
+    }
+}
+
+// Camera LAN address from the cloud Wi-Fi status, or null.
+async function getLanAddress(token, cameraId) {
+    const res = await axios.get(
+        `${CLOUD_API}/v11/video_inputs/${encodeURIComponent(cameraId)}/wifiinfo`,
+        { headers: authHeaders(token), httpsAgent: boschCloudAgent, timeout: TIMEOUT }
+    );
+    const ip = res.data && res.data.ipAddress;
+    return typeof ip === 'string' ? ip : null;
+}
+
+// Only private IPv4 LAN addresses qualify: no loopback, link-local,
+// unspecified or public hosts.
+function isSafeLanHost(host) {
+    if (typeof host !== 'string' || net.isIP(host) !== 4) { return false; }
+    const o = host.split('.').map(Number);
+    return o[0] === 10 ||
+        (o[0] === 172 && o[1] >= 16 && o[1] <= 31) ||
+        (o[0] === 192 && o[1] === 168);
+}
+
+function ldiSourceUrl(host, password) {
+    return `rtsps://${LDI_USER}:${encodeURIComponent(password)}@${host}:${LDI_PORT}/live`;
+}
+
 // Replace the userinfo section (user:pass@) in a stream URL with "***:***@"
 // so it is safe to emit in node logs/status.
 function redactStreamUrl(url) {
@@ -512,6 +598,15 @@ module.exports = {
     setAudioDetection,
     getFirmware,
     installFirmware,
+    parseFirmware,
+    firmwareSupportsLdi,
+    ldiStateFromResponse,
+    getLocalDataInterface,
+    getLanAddress,
+    isSafeLanHost,
+    ldiSourceUrl,
+    LDI_USER,
+    LDI_PORT,
     BoschCloudAgent,
     KEYCLOAK_TOKEN_URL,
     CLOUD_API,

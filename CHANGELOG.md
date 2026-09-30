@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.5.0-alpha] - 2026-09-30
+
+- **Local data interface.** `bosch-camera-firmware-status` now reports the
+  camera's local data interface state in `payload.localDataInterface`
+  (Gen2, firmware 9.40.105 or newer; read-only). The Bosch config node takes
+  an optional per-camera password; when the interface is active and a
+  password is set, `bosch-camera-stream-url` returns a local
+  `rtsps://…:9554/live` URL (video only) and opens no cloud stream session.
+  Without a password, or while inactive, behavior is unchanged.
+- **Security:** bumped `axios` to 1.20.0 (clears all advisories reported by `npm audit --omit=dev`).
+
 ## [0.4.3-alpha] - 2026-08-19
 
 Family-parity batch: ports 3 HA-integration capabilities that fit this

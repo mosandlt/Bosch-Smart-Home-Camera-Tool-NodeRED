@@ -101,5 +101,13 @@
     <p>Stream URLs may embed Digest credentials in the userinfo component
     (<code>rtsp://user:pass@host/...</code>). The node <em>never</em> logs the raw URL —
     only a redacted form (<code>***:***@</code>) appears in node status and the log.</p>
+    <p><b>Local data interface:</b> when the Bosch config node has a local password for
+    the camera and the camera's local data interface is active (Gen2, firmware 9.40.105 or
+    newer), the node returns <code>rtsps://localuser:&lt;password&gt;@&lt;lan-ip&gt;:9554/live</code>
+    (video only, no audio) and opens <em>no</em> cloud stream session. If that source cannot
+    be built (no usable LAN address) the node fails instead of using the cloud. The camera
+    closes playback while privacy mode is on. Without a password, or while the interface is
+    inactive, behavior is unchanged. <code>payload.localDataInterface</code> is
+    <code>true</code> for such URLs; the URL contains the password, treat it as a secret.</p>
     <p>Pass the URL to an RTSP-capable player node or use it with go2rtc / FFmpeg.</p>
 </script>

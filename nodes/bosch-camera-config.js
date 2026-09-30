@@ -59,6 +59,24 @@ module.exports = function (RED) {
             return inflight;
         };
 
+        // Per-camera password for the local data interface, from the JSON
+        // credential {"<cameraId>": "<password>"}. Matched case-insensitively;
+        // null when absent or malformed.
+        node.getLocalPassword = function (camId) {
+            const raw = node.credentials && node.credentials.localPasswords;
+            if (!raw || typeof camId !== 'string') { return null; }
+            let map;
+            try { map = JSON.parse(raw); } catch { return null; }
+            if (!map || typeof map !== 'object' || Array.isArray(map)) { return null; }
+            const key = Object.keys(map).find(function (k) { return k.toLowerCase() === camId.toLowerCase(); });
+            const pw = key ? map[key] : null;
+            return typeof pw === 'string' && pw.trim() ? pw : null;
+        };
+
+        // Last known local-data-interface state per camera id (shared by the
+        // status and stream nodes).
+        node.ldiCache = new Map();
+
         node.on('close', function (done) {
             accessToken = null;
             expiresAt = 0;
@@ -68,7 +86,8 @@ module.exports = function (RED) {
 
     RED.nodes.registerType('bosch-camera-config', BoschCameraConfigNode, {
         credentials: {
-            refreshToken: { type: 'password' }
+            refreshToken: { type: 'password' },
+            localPasswords: { type: 'password' }
         }
     });
 };

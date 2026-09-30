@@ -25,6 +25,19 @@ module.exports = function (RED) {
 
         node.status({ fill: 'grey', shape: 'dot', text: 'idle' });
 
+        // Status of the local data interface. Only Gen2 cameras on qualifying
+        // firmware are queried; an unusable answer keeps the last known value.
+        function localDataInterface(token, camId, fw, msg) {
+            const cache = node.server.ldiCache;
+            if (msg.generation === 1 || !api.firmwareSupportsLdi(fw.installedVersion)) {
+                return Promise.resolve(null);
+            }
+            return api.getLocalDataInterface(token, camId).then(function (state) {
+                if (state) { cache.set(camId, state); }
+                return cache.get(camId) || null;
+            });
+        }
+
         node.on('input', function (msg, send, done) {
             send = send || function () { node.send.apply(node, arguments); };
             done = done || function (err) { if (err) { node.error(err, msg); } };
@@ -38,8 +51,15 @@ module.exports = function (RED) {
 
             node.status({ fill: 'blue', shape: 'dot', text: 'reading...' });
 
+            let token;
             node.server.getAccessToken()
-                .then(function (token) { return api.getFirmware(token, camId); })
+                .then(function (t) { token = t; return api.getFirmware(token, camId); })
+                .then(function (fw) {
+                    return localDataInterface(token, camId, fw, msg).then(function (ldi) {
+                        fw.localDataInterface = ldi;
+                        return fw;
+                    });
+                })
                 .then(function (fw) {
                     const text = fw.upToDate === true
                         ? 'up to date'
