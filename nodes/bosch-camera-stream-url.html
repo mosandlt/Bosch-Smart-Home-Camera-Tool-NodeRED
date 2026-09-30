@@ -7,7 +7,8 @@
             server:         { value: '', type: 'bosch-camera-config', required: true },
             cameraId:       { value: '', required: false },
             connectionType: { value: 'REMOTE' },  // 'REMOTE' | 'LOCAL'
-            quality:        { value: 'auto' }     // 'auto' | 'high' | 'low'
+            quality:        { value: 'auto' },    // 'auto' | 'high' | 'low'
+            audio:          { value: true }       // local data interface: include audio
         },
         inputs: 1,
         outputs: 1,
@@ -49,6 +50,11 @@
             <option value="low">Low (~1.9 Mbps, LOCAL only)</option>
         </select>
     </div>
+    <div class="form-row">
+        <label for="node-input-audio"><i class="fa fa-volume-up"></i> Audio</label>
+        <input type="checkbox" id="node-input-audio" style="width:auto; vertical-align:top;">
+        <span>Include audio (local data interface only)</span>
+    </div>
 </script>
 
 <script type="text/html" data-help-name="bosch-camera-stream-url">
@@ -65,6 +71,8 @@
         <dt class="optional">quality <span class="property-type">string</span></dt>
         <dd>Override the quality preference at runtime via <code>msg.quality</code>
         (<code>'auto'</code>, <code>'high'</code>, or <code>'low'</code>).</dd>
+        <dt class="optional">audio <span class="property-type">boolean</span></dt>
+        <dd>Local data interface only: <code>msg.audio</code> overrides the Audio option.</dd>
     </dl>
 
     <h3>Outputs</h3>
@@ -103,11 +111,14 @@
     only a redacted form (<code>***:***@</code>) appears in node status and the log.</p>
     <p><b>Local data interface:</b> when the Bosch config node has a local password for
     the camera and the camera's local data interface is active (Gen2, firmware 9.40.105 or
-    newer), the node returns <code>rtsps://localuser:&lt;password&gt;@&lt;lan-ip&gt;:9554/live</code>
-    (video only, no audio) and opens <em>no</em> cloud stream session. If that source cannot
+    newer), the node returns <code>rtsps://localuser:&lt;password&gt;@&lt;lan-ip&gt;:9554/rtsp_tunnel?line=1&amp;inst=&lt;1|2&gt;&amp;enableaudio=&lt;0|1&gt;</code>
+    and opens <em>no</em> cloud stream session. If that source cannot
     be built (no usable LAN address) the node fails instead of using the cloud. The camera
     closes playback while privacy mode is on. Without a password, or while the interface is
-    inactive, behavior is unchanged. <code>payload.localDataInterface</code> is
+    inactive, behavior is unchanged. Quality <code>high</code>/<code>auto</code> selects
+    <code>inst=1</code> (high quality), <code>low</code> selects <code>inst=2</code> (low quality);
+    audio (AAC, 16 kHz mono) is on by default. The camera allows only a few (about 3)
+    simultaneous RTSP sessions. <code>payload.localDataInterface</code> is
     <code>true</code> for such URLs; the URL contains the password, treat it as a secret.</p>
     <p>Pass the URL to an RTSP-capable player node or use it with go2rtc / FFmpeg.</p>
 </script>

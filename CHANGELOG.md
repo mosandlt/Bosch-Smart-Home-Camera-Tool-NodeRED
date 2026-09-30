@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.5.1-alpha] - 2026-09-30
+
+- **Fixed:** the local data interface stream URL now uses the correct path `/rtsp_tunnel?line=1&inst=<1|2>&enableaudio=<0|1>` instead of `/live`, so local streams carry audio and honor the quality selection (high/auto → `inst=1`, low → `inst=2`). New `Audio` option / `msg.audio` on `bosch-camera-stream-url` (default on).
+
 ## [0.5.0-alpha] - 2026-09-30
 
 - **Local data interface.** `bosch-camera-firmware-status` now reports the
@@ -9,7 +13,7 @@
   (Gen2, firmware 9.40.105 or newer; read-only). The Bosch config node takes
   an optional per-camera password; when the interface is active and a
   password is set, `bosch-camera-stream-url` returns a local
-  `rtsps://…:9554/live` URL (video only) and opens no cloud stream session.
+  `rtsps://…:9554/…` URL and opens no cloud stream session.
   Without a password, or while inactive, behavior is unchanged.
 - **Security:** bumped `axios` to 1.20.0 (clears all advisories reported by `npm audit --omit=dev`).
 

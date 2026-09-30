@@ -57,7 +57,15 @@ describe('local data interface helpers', function () {
             .forEach(function (h) { assert.strictEqual(api.isSafeLanHost(h), false, String(h)); });
     });
     it('url-quotes the password', function () {
-        assert.strictEqual(api.ldiSourceUrl('10.0.0.5', 'p@:/ w'), 'rtsps://localuser:p%40%3A%2F%20w@10.0.0.5:9554/live');
+        assert.strictEqual(api.ldiSourceUrl('10.0.0.5', 'p@:/ w'),
+            'rtsps://localuser:p%40%3A%2F%20w@10.0.0.5:9554/rtsp_tunnel?line=1&inst=1&enableaudio=1');
+    });
+    const B = 'rtsps://localuser:pw@10.0.0.5:9554/rtsp_tunnel?line=1';
+    [['high', true, 1, 1], ['high', false, 1, 0], ['low', true, 2, 1], ['low', false, 2, 0],
+        ['auto', true, 1, 1], ['garbage', true, 1, 1], [undefined, undefined, 1, 1]].forEach(function (c) {
+        it('url mode quality=' + c[0] + ' audio=' + c[1], function () {
+            assert.strictEqual(api.ldiSourceUrl('10.0.0.5', 'pw', c[0], c[1]), `${B}&inst=${c[2]}&enableaudio=${c[3]}`);
+        });
     });
     it('status read maps 200/404/449/garbage/network error', async function () {
         nock(CLOUD).get(BASE + '/onvif_user').reply(200, { username: 'localuser' });
@@ -174,7 +182,7 @@ describe('stream-url local data interface', function () {
             // no /connection mock: a cloud call would fail the test
             h1.on('input', function (msg) {
                 try {
-                    assert.strictEqual(msg.payload.rtsps, 'rtsps://localuser:test-pw@10.0.0.7:9554/live');
+                    assert.strictEqual(msg.payload.rtsps, 'rtsps://localuser:test-pw@10.0.0.7:9554/rtsp_tunnel?line=1&inst=1&enableaudio=1');
                     assert.strictEqual(msg.payload.rtsp, null);
                     assert.strictEqual(msg.payload.hls, null);
                     assert.strictEqual(msg.payload.localDataInterface, true);
@@ -182,6 +190,20 @@ describe('stream-url local data interface', function () {
                 } catch (e) { done(e); }
             });
             n1.receive({});
+        });
+    });
+    it('active + password: msg.quality=low and msg.audio=false -> inst=2, enableaudio=0', function (done) {
+        load(pwCreds, function (n1, h1) {
+            fw('9.40.202');
+            nock(CLOUD).get(BASE + '/onvif_user').reply(200, { username: 'localuser' });
+            nock(CLOUD).get(BASE + '/wifiinfo').reply(200, { ipAddress: '10.0.0.7' });
+            h1.on('input', function (msg) {
+                try {
+                    assert.strictEqual(msg.payload.rtsps, 'rtsps://localuser:test-pw@10.0.0.7:9554/rtsp_tunnel?line=1&inst=2&enableaudio=0');
+                    done();
+                } catch (e) { done(e); }
+            });
+            n1.receive({ quality: 'low', audio: false });
         });
     });
     it('active + password: status text is redacted, password never logged', function (done) {

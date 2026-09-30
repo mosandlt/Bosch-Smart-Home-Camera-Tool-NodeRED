@@ -160,6 +160,8 @@ can all be overridden at runtime via `msg.cameraId` / `msg.connectionType` /
 `msg.quality`. Digest credentials embedded in RTSP URLs are redacted in node
 status and logs (`***:***@`).
 
+**Local data interface stream** (Gen2, firmware 9.40.105+, password set on the config node, interface active): the node returns `rtsps://localuser:<password>@<lan-ip>:9554/rtsp_tunnel?line=1&inst=<1|2>&enableaudio=<0|1>` and opens no cloud session. `high`/`auto` → `inst=1` (high quality), `low` → `inst=2` (low quality); audio (AAC, 16 kHz mono) is on by default (`Audio` option or `msg.audio`). The camera allows only a few (about 3) simultaneous RTSP sessions and closes the stream while privacy mode is on.
+
 ### bosch-camera-light (action/query node)
 
 Reads or sets the front-illuminator / wallwasher light state on a Bosch Eyes

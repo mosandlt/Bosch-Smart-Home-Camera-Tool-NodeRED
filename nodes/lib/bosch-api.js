@@ -568,8 +568,15 @@ function isSafeLanHost(host) {
         (o[0] === 192 && o[1] === 168);
 }
 
-function ldiSourceUrl(host, password) {
-    return `rtsps://${LDI_USER}:${encodeURIComponent(password)}@${host}:${LDI_PORT}/live`;
+// Local data interface stream: /rtsp_tunnel?line=1&inst=<1|2>&enableaudio=<0|1>.
+// inst=1 is the high-quality stream, inst=2 the low-quality one (inst=3 is the
+// 1 Hz JPEG preview, not used here). 'low' selects inst=2; 'high'/'auto'/anything
+// else selects inst=1. enableaudio=1 adds AAC audio (16 kHz mono); audio defaults on.
+function ldiSourceUrl(host, password, quality = 'auto', audio = true) {
+    const inst = quality === 'low' ? 2 : 1;
+    const enableAudio = audio === false || audio === 0 || audio === '0' ? 0 : 1;
+    return `rtsps://${LDI_USER}:${encodeURIComponent(password)}@${host}:${LDI_PORT}` +
+        `/rtsp_tunnel?line=1&inst=${inst}&enableaudio=${enableAudio}`;
 }
 
 // Replace the userinfo section (user:pass@) in a stream URL with "***:***@"

@@ -17,6 +17,7 @@ module.exports = function (RED) {
         node.cameraId = config.cameraId;
         node.connectionType = config.connectionType || 'REMOTE'; // 'REMOTE' | 'LOCAL'
         node.quality = config.quality || 'auto'; // 'auto' | 'high' | 'low'
+        node.audio = config.audio !== false && config.audio !== 'false'; // local data interface audio, default on
 
         if (!node.server) {
             node.status({ fill: 'red', shape: 'ring', text: 'no config' });
@@ -29,7 +30,7 @@ module.exports = function (RED) {
         // Local data interface source: applies only with a stored password and
         // an active interface. Returns null to keep the normal cloud path; an
         // applicable but unusable local source fails closed (no cloud session).
-        function localSource(token, camId, msg) {
+        function localSource(token, camId, msg, quality, audio) {
             const password = node.server.getLocalPassword ? node.server.getLocalPassword(camId) : null;
             if (!password || msg.generation === 1) { return Promise.resolve(null); }
             const cache = node.server.ldiCache || new Map();
@@ -44,7 +45,7 @@ module.exports = function (RED) {
                         if (!api.isSafeLanHost(ip)) {
                             throw new Error('local data interface: no usable LAN address for this camera (stream not opened)');
                         }
-                        return { rtsp: null, rtsps: api.ldiSourceUrl(ip, password), hls: null, local: true };
+                        return { rtsp: null, rtsps: api.ldiSourceUrl(ip, password, quality, audio), hls: null, local: true };
                     });
                 });
             });
@@ -67,11 +68,14 @@ module.exports = function (RED) {
             // Quality: msg wins, then node config, then default 'auto'.
             const quality = msg.quality || node.quality || 'auto';
 
+            // Audio (local data interface only): msg wins, then node config.
+            const audio = typeof msg.audio === 'boolean' ? msg.audio : node.audio;
+
             node.status({ fill: 'blue', shape: 'dot', text: 'opening...' });
 
             node.server.getAccessToken()
                 .then(function (token) {
-                    return localSource(token, camId, msg).then(function (local) {
+                    return localSource(token, camId, msg, quality, audio).then(function (local) {
                         if (local) { return local; }
                         return api.getStreamUrl(token, camId, connType, quality);
                     });
